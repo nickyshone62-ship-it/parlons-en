@@ -780,11 +780,11 @@ export default function ChatPage() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSendMessage} className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0">
+              <form onSubmit={handleSendMessage} className="p-2.5 sm:p-3.5 bg-white dark:bg-slate-900 border-t-2 border-slate-200 dark:border-slate-800 flex items-center gap-2 shrink-0">
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder={`Tapez votre réponse... (Réponses illimitées)`}
+                  placeholder="Votre message..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -793,18 +793,16 @@ export default function ChatPage() {
                       handleSendMessage();
                     }
                   }}
-                  className="flex-1 bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-500 border-2 border-slate-300 dark:border-slate-700 rounded-full px-4.5 py-3 text-base sm:text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition shadow-inner"
+                  className="min-w-0 flex-1 bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 border-2 border-slate-300 dark:border-slate-700 rounded-full px-4 py-2.5 text-base sm:text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner"
                 />
 
-                <Button
+                <button
                   type="submit"
-                  variant="primary"
-                  size="md"
-                  leftIcon={<Send className="w-4 h-4" />}
-                  className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black rounded-full shadow-lg border-none px-5 py-3 text-xs sm:text-sm shrink-0"
+                  className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black rounded-full shadow-md border-none px-4 py-2.5 text-xs sm:text-sm flex items-center justify-center gap-1.5 shrink-0 cursor-pointer transition hover:scale-105 active:scale-95"
                 >
-                  Envoyer 🚀
-                </Button>
+                  <span>Envoyer</span>
+                  <Send className="w-4 h-4 text-slate-950" />
+                </button>
               </form>
             )}
 
