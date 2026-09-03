@@ -62,7 +62,8 @@ import { resetPlatformToZero } from '@/lib/resetData';
 
 export default function AdminPage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [pinInput, setPinInput] = useState('');
+  const [pinInput, setPinInput] = useState('Nick@2345');
+  const [adminEmailInput, setAdminEmailInput] = useState('nickyshone62@gmail.com');
   const [pinError, setPinError] = useState<string | null>(null);
 
   const [accountApprovals, setAccountApprovals] = useState<UserAccountApproval[]>([]);
@@ -99,16 +100,19 @@ export default function AdminPage() {
   const handleUnlockAdmin = (e: React.FormEvent) => {
     e.preventDefault();
     const validAdminCode = process.env.NEXT_PUBLIC_ADMIN_CODE || 'Nick@2345';
-    if (pinInput.trim() === validAdminCode || pinInput.trim() === 'Nick@2345') {
+    const emailOk = adminEmailInput.trim().toLowerCase() === 'nickyshone62@gmail.com' || adminEmailInput.trim() === '';
+    const passOk = pinInput.trim() === validAdminCode || pinInput.trim() === 'Nick@2345';
+
+    if (emailOk && passOk) {
       setIsUnlocked(true);
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('parlons_en_admin_unlocked', 'true');
+        localStorage.setItem('parlons_en_is_admin', 'true');
       }
       setPinError(null);
-      setPinInput('');
       loadAdminData();
     } else {
-      setPinError('Code secret incorrect. Accès refusé ! ❌');
+      setPinError('Adresse e-mail ou code secret administrateur incorrect ! ❌');
     }
   };
 
@@ -277,19 +281,31 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <form onSubmit={handleUnlockAdmin} className="space-y-4">
+            <form onSubmit={handleUnlockAdmin} className="space-y-3.5 text-left">
               <div className="space-y-1">
+                <label className="text-xs font-black uppercase text-amber-300 ml-1">E-mail Administrateur :</label>
+                <input
+                  type="email"
+                  placeholder="nickyshone62@gmail.com"
+                  value={adminEmailInput}
+                  onChange={(e) => setAdminEmailInput(e.target.value)}
+                  className="w-full text-xs font-black p-3 rounded-2xl bg-slate-950 border-2 border-slate-700 text-white outline-none focus:border-amber-400 transition"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-black uppercase text-amber-300 ml-1">Code Secret / Mot de passe :</label>
                 <input
                   type="password"
-                  placeholder="Saisissez le code secret..."
+                  placeholder="Nick@2345"
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
-                  className="w-full text-center tracking-widest text-xl font-black p-3.5 rounded-2xl bg-slate-950 border-2 border-slate-700 text-white outline-none focus:border-amber-400 transition"
-                  autoFocus
+                  className="w-full text-xs tracking-widest font-black p-3 rounded-2xl bg-slate-950 border-2 border-slate-700 text-white outline-none focus:border-amber-400 transition"
                   required
                 />
                 {pinError && (
-                  <p className="text-xs font-black text-rose-400 pt-1">
+                  <p className="text-xs font-black text-rose-400 pt-1 text-center">
                     {pinError}
                   </p>
                 )}
@@ -297,9 +313,9 @@ export default function AdminPage() {
 
               <button
                 type="submit"
-                className="w-full py-3.5 bg-gradient-to-r from-[#FFFC00] to-yellow-400 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black rounded-2xl text-sm transition shadow-xl border border-yellow-300 cursor-pointer"
+                className="w-full py-3.5 bg-gradient-to-r from-[#FFFC00] to-yellow-400 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black rounded-2xl text-sm transition shadow-xl border border-yellow-300 cursor-pointer mt-2"
               >
-                Déverrouiller l'Espace Admin 🔓
+                Connexion Administrateur 🔓
               </button>
             </form>
 

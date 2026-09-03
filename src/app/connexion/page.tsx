@@ -37,7 +37,11 @@ export default function ConnexionPage() {
         if (typeof window !== 'undefined') {
           localStorage.setItem('parlons_en_has_seen_onboarding', 'true');
         }
-        router.push('/');
+        if (res.isAdmin) {
+          router.push('/admin');
+        } else {
+          router.push('/');
+        }
         router.refresh();
       }
     } catch (err: any) {

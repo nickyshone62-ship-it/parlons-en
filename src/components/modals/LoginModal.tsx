@@ -38,7 +38,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         setErrorMessage(res.error || 'Connexion échouée.');
       } else {
         onClose();
-        router.push('/');
+        if (res.isAdmin) {
+          router.push('/admin');
+        } else {
+          router.push('/');
+        }
         router.refresh();
       }
     } catch (err: any) {
