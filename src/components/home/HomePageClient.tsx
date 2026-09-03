@@ -13,6 +13,7 @@ import { PostCard } from '@/components/posts/PostCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NewPostModal } from '@/components/modals/NewPostModal';
 import { NewReviewModal } from '@/components/modals/NewReviewModal';
+import { LoginModal } from '@/components/modals/LoginModal';
 import { getRealUserReviews, UserReview, INITIAL_REVIEWS } from '@/lib/supabase/reviews';
 import { getCurrentUserSession } from '@/lib/auth/actions';
 import { getRealPosts } from '@/lib/supabase/posts';
