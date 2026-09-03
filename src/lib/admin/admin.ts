@@ -16,6 +16,10 @@ export function resetAdminSpaceToZero(): void {
       localStorage.setItem(LOCAL_STORAGE_REPORTS_KEY, JSON.stringify([]));
       localStorage.setItem(LOCAL_STORAGE_WARNINGS_KEY, JSON.stringify([]));
       localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify({}));
+      localStorage.setItem('parlons_en_chat_topics_v2', JSON.stringify([]));
+      localStorage.setItem('parlons_en_account_approvals_v1', JSON.stringify([]));
+      localStorage.clear();
+      sessionStorage.clear();
     } catch {
       // Ignore
     }
