@@ -183,97 +183,109 @@ export const NewPostModal: React.FC<NewPostModalProps> = ({
             </div>
           )}
 
-          {/* ÉTAPE 1: SELECTION DE LA CATEGORIE (CLAIREMENT SÉPARÉE) */}
-          <div className="space-y-4 p-5 bg-gradient-to-br from-blue-50/80 to-indigo-50/40 dark:from-slate-900/90 dark:to-slate-950 rounded-3xl border-2 border-blue-200/80 dark:border-slate-800 shadow-md">
-            <div className="flex items-center justify-between">
+          {/* ÉTAPE 1: SÉLECTION DE LA CATÉGORIE (TOTALEMENT SÉPARÉE ET DISTINCTE) */}
+          <div className="space-y-4 p-5 bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 rounded-3xl border-2 border-blue-300/80 dark:border-slate-800 shadow-lg">
+            <div className="flex items-center justify-between pb-2 border-b border-blue-200/60 dark:border-slate-800">
               <div className="flex items-center gap-2.5 text-xs font-black uppercase tracking-wider text-blue-700 dark:text-blue-400">
-                <span className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs shadow-sm">1</span>
-                <span>Étape 1 : Choisir la Catégorie du Problème</span>
+                <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black shadow-md">1</span>
+                <span>Étape 1 : Sélectionnez la Catégorie Concernée</span>
               </div>
-              <span className="text-[11px] font-bold text-slate-500 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700">
-                {categories.find(c => c.id === selectedCatId)?.name || "Sélectionnez une catégorie"}
-              </span>
+              {selectedCatId && (
+                <span className="text-[11px] font-black text-blue-700 dark:text-blue-300 bg-blue-600/10 px-3 py-1 rounded-full border border-blue-500/20 flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                  {categories.find(c => c.id === selectedCatId)?.name}
+                </span>
+              )}
             </div>
 
-            {/* Menu Déroulant Rapide */}
+            {/* Menu Déroulant de Sélection Rapide */}
             <div className="space-y-1.5">
               <label htmlFor="category-select" className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                📁 Liste des catégories disponibles :
+                📌 Choisissez dans la liste déroulante :
               </label>
               <select
                 id="category-select"
                 value={selectedCatId}
                 onChange={(e) => setSelectedCatId(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border-2 border-blue-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-extrabold text-xs sm:text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition cursor-pointer shadow-sm"
+                className="w-full px-4 py-3 rounded-2xl bg-white dark:bg-slate-800 border-2 border-blue-400/80 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-extrabold text-xs sm:text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition cursor-pointer shadow-sm"
                 required
               >
-                <option value="" disabled>-- Sélectionnez une catégorie distincte --</option>
+                <option value="" disabled>-- Choisir une catégorie --</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id} className="py-2 text-slate-900 font-bold">
-                    {cat.name} {cat.description ? `— ${cat.description}` : ''}
+                    {cat.name} {cat.description ? `(${cat.description})` : ''}
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Grille de Cartes de Catégories Distinctes & Séparées */}
-            <div className="space-y-2">
+            {/* Cartes Individuelles & Totalement Séparées pour chaque Catégorie */}
+            <div className="space-y-2 pt-1">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                👇 Ou choisissez directement la carte de votre choix :
+                ✨ Ou cliquez directement sur la catégorie de votre choix ci-dessous :
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-blue-300">
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-h-64 overflow-y-auto p-1.5 scrollbar-thin scrollbar-thumb-blue-400">
                 {categories.map((cat) => {
                   const isSelected = selectedCatId === cat.id;
                   const icon = CATEGORY_ICON_MAP[cat.slug] || <Tag className="w-4 h-4 text-blue-500" />;
+                  
                   return (
-                    <button
+                    <div
                       key={cat.id}
-                      type="button"
                       onClick={() => setSelectedCatId(cat.id)}
-                      className={`flex items-start gap-3 p-3 rounded-2xl font-black text-xs transition-all duration-200 text-left border-2 cursor-pointer relative overflow-hidden ${
+                      className={`p-3.5 rounded-2xl transition-all duration-200 cursor-pointer relative flex items-start gap-3 border-2 shadow-sm ${
                         isSelected
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-600 shadow-lg shadow-blue-500/25 scale-[1.02]'
-                          : 'bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700/80 hover:border-blue-400 hover:bg-blue-50/60 dark:hover:bg-slate-800 shadow-sm'
+                          ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white border-blue-600 shadow-xl shadow-blue-500/30 scale-[1.02] ring-2 ring-blue-400/50'
+                          : 'bg-white dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 border-slate-200/90 dark:border-slate-700/80 hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-slate-800'
                       }`}
                     >
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-                          isSelected ? 'bg-white/20 text-white' : 'bg-blue-100 dark:bg-slate-700 text-blue-600 dark:text-blue-400'
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-md ${
+                          isSelected
+                            ? 'bg-white/20 text-white border border-white/30 backdrop-blur-md'
+                            : 'bg-blue-50 dark:bg-slate-700 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-slate-600'
                         }`}
                       >
                         {icon}
                       </div>
-                      <div className="flex-1 min-w-0 space-y-0.5">
-                        <div className="font-black text-xs sm:text-sm tracking-tight truncate">{cat.name}</div>
+
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="font-black text-xs sm:text-sm tracking-tight truncate">
+                            {cat.name}
+                          </span>
+                          {isSelected && (
+                            <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 shadow-sm">
+                              Sélectionné
+                            </span>
+                          )}
+                        </div>
+
                         {cat.description && (
-                          <div className={`text-[11px] font-medium leading-tight line-clamp-2 ${
+                          <p className={`text-[11px] font-medium leading-relaxed line-clamp-2 ${
                             isSelected ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'
                           }`}>
                             {cat.description}
-                          </div>
+                          </p>
                         )}
                       </div>
-                      {isSelected && (
-                        <div className="shrink-0 bg-white/20 p-1 rounded-full">
-                          <CheckCircle2 className="w-4 h-4 text-white" />
-                        </div>
-                      )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
             </div>
           </div>
 
-          {/* LIGNE DE SEPARATION NETTE ET STRUCTURANTE */}
-          <div className="relative my-5">
+          {/* SÉPARATION NETTE ENTRE LA CATÉGORIE ET LE FORMULAIRE DE RÉDACTION */}
+          <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t-2 border-slate-300 dark:border-slate-800" />
+              <div className="w-full border-t-2 border-dashed border-blue-300 dark:border-slate-700" />
             </div>
             <div className="relative flex justify-center text-xs font-black uppercase tracking-wider">
-              <span className="bg-white dark:bg-slate-900 px-4 text-blue-600 dark:text-blue-400 font-extrabold flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-blue-600" />
-                Détails du Problème
+              <span className="bg-white dark:bg-slate-900 px-4 text-blue-700 dark:text-blue-400 font-black flex items-center gap-2 border border-blue-200 dark:border-slate-800 rounded-full py-1 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                Étape 2 : Rédaction du Problème
               </span>
             </div>
           </div>
