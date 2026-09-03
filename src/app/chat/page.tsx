@@ -79,6 +79,8 @@ export default function ChatPage() {
   const [activeTopic, setActiveTopic] = useState<UserChatTopic>(INITIAL_TOPICS[0]);
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES);
   const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mobileTab, setMobileTab] = useState<'topics' | 'chat'>('chat');
   const [inputValue, setInputValue] = useState('');
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
   const [isNewTopicModalOpen, setIsNewTopicModalOpen] = useState(false);
@@ -167,20 +169,36 @@ export default function ChatPage() {
     }
   }, [topics, isLoaded]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, activeTopic]);
+    scrollToBottom(false);
+  }, [activeTopic]);
+
+  useEffect(() => {
+    scrollToBottom(true);
+  }, [messages]);
+
+  const handleSelectTopic = (topic: UserChatTopic) => {
+    setActiveTopic(topic);
+    setMobileTab('chat');
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
 
   const currentPseudonym = session?.anonymousIdentity?.anonymous_name || 'Utilisateur #4821';
   const currentAvatar = session?.user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentPseudonym)}`;
 
-  const filteredTopics = activeFilter === 'all'
-    ? topics
-    : topics.filter((t) => t.categorySlug === activeFilter);
+  const filteredTopics = topics.filter((t) => {
+    const matchesFilter = activeFilter === 'all' || t.categorySlug === activeFilter;
+    const matchesSearch = !searchQuery.trim() || 
+      t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      t.authorPseudonym.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   const currentMessages = messages[activeTopic.id] || [];
 
@@ -267,6 +285,7 @@ export default function ChatPage() {
     });
 
     setActiveTopic(newTopic);
+    setMobileTab('chat');
     setIsNewTopicModalOpen(false);
   };
 
@@ -306,41 +325,84 @@ export default function ChatPage() {
           </Button>
         </div>
 
-        {/* CATEGORY FILTER TABS */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          <span className="text-xs font-black uppercase text-slate-500 flex items-center gap-1 shrink-0 ml-1">
-            <Filter className="w-3.5 h-3.5" /> Thèmes :
-          </span>
-          {[
-            { slug: 'all', name: 'Tous les sujets' },
-            { slug: 'relations', name: 'Relations' },
-            { slug: 'etudes', name: 'Études' },
-            { slug: 'travail', name: 'Travail' },
-            { slug: 'entrepreneuriat', name: 'Entrepreneuriat' },
-            { slug: 'general', name: 'Café & Général' },
-          ].map((tab) => {
-            const isActive = activeFilter === tab.slug;
-            return (
-              <button
-                key={tab.slug}
-                onClick={() => setActiveFilter(tab.slug)}
-                className={`px-4 py-2 rounded-full text-xs font-black transition cursor-pointer shrink-0 ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-slate-800'
-                }`}
-              >
-                {tab.name}
-              </button>
-            );
-          })}
+        {/* SEARCH & CATEGORY FILTER BAR */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
+            <span className="text-xs font-black uppercase text-slate-500 flex items-center gap-1 shrink-0 ml-1">
+              <Filter className="w-3.5 h-3.5" /> Thèmes :
+            </span>
+            {[
+              { slug: 'all', name: 'Tous les sujets' },
+              { slug: 'relations', name: 'Relations' },
+              { slug: 'etudes', name: 'Études' },
+              { slug: 'travail', name: 'Travail' },
+              { slug: 'entrepreneuriat', name: 'Entrepreneuriat' },
+              { slug: 'general', name: 'Café & Général' },
+            ].map((tab) => {
+              const isActive = activeFilter === tab.slug;
+              return (
+                <button
+                  key={tab.slug}
+                  onClick={() => setActiveFilter(tab.slug)}
+                  className={`px-4 py-2 rounded-full text-xs font-black transition cursor-pointer shrink-0 ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {tab.name}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Quick Search Input */}
+          <div className="relative w-full sm:w-64 shrink-0">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Rechercher un sujet..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-full pl-9 pr-4 py-2 text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* MOBILE VIEW TOGGLE TABS (ONLY VISIBLE ON MOBILE SCREENS) */}
+        <div className="flex lg:hidden bg-slate-200/80 dark:bg-slate-900 p-1 rounded-2xl gap-1">
+          <button
+            onClick={() => setMobileTab('topics')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 cursor-pointer ${
+              mobileTab === 'topics'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+          >
+            <Flame className="w-4 h-4 text-amber-400" />
+            <span>Salons de chat ({filteredTopics.length})</span>
+          </button>
+
+          <button
+            onClick={() => setMobileTab('chat')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-2 cursor-pointer ${
+              mobileTab === 'chat'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4 text-blue-300" />
+            <span>Discussion ({currentMessages.length})</span>
+          </button>
         </div>
 
         {/* MAIN CHAT CONTAINER (TOPIC LIST + LIVE CHAT WINDOW) */}
         <div className="flex flex-col lg:flex-row gap-4 w-full">
           
           {/* LEFT COLUMN: USER CREATED TOPICS LIST */}
-          <div className="w-full lg:w-80 shrink-0 bg-white dark:bg-slate-900 rounded-[32px] p-4 border-2 border-blue-200/80 dark:border-slate-800 shadow-xl shadow-blue-600/10 space-y-3">
+          <div className={`w-full lg:w-80 shrink-0 bg-white dark:bg-slate-900 rounded-[32px] p-4 border-2 border-blue-200/80 dark:border-slate-800 shadow-xl shadow-blue-600/10 space-y-3 ${
+            mobileTab === 'chat' ? 'hidden lg:block' : 'block'
+          }`}>
             
             <div className="flex items-center justify-between px-2 pt-1">
               <span className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1.5">
@@ -352,63 +414,86 @@ export default function ChatPage() {
               </span>
             </div>
 
-            <div className="space-y-2 overflow-x-auto lg:overflow-y-auto max-h-56 lg:max-h-[500px] flex lg:flex-col gap-2.5 lg:gap-2 pb-1 lg:pb-0 scrollbar-none">
-              {filteredTopics.map((topic) => {
-                const isActive = activeTopic.id === topic.id;
-                return (
-                  <button
-                    key={topic.id}
-                    onClick={() => setActiveTopic(topic)}
-                    className={`w-full p-3.5 rounded-2xl transition text-left cursor-pointer shrink-0 lg:shrink space-y-2 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-lg shadow-blue-500/25'
-                        : 'bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
-                    }`}
+            <div className="space-y-2 overflow-y-auto max-h-[480px] sm:max-h-[520px] flex flex-col gap-2 pr-1 scrollbar-thin scrollbar-thumb-blue-200">
+              {filteredTopics.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-500 font-bold space-y-2">
+                  <p>Aucun sujet ne correspond à votre recherche.</p>
+                  <Button
+                    onClick={() => { setSearchQuery(''); setActiveFilter('all'); }}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full text-[11px]"
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-blue-600/10 text-blue-600 dark:text-blue-400'
-                      }`}>
-                        {topic.categoryName}
-                      </span>
-                      <span className={`text-[10px] font-bold ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>
-                        {topic.createdAt}
-                      </span>
-                    </div>
-
-                    <h4 className="text-xs sm:text-sm font-black line-clamp-2 leading-snug">
-                      {topic.title}
-                    </h4>
-
-                    <div className="flex items-center justify-between text-[11px] font-bold pt-1 border-t border-white/10 dark:border-slate-800">
-                      <div className="flex items-center gap-1.5">
-                        <img src={topic.authorAvatar} alt="Avatar" className="w-4 h-4 rounded-full" />
-                        <span className="truncate max-w-[100px]">{topic.authorPseudonym}</span>
+                    Réinitialiser les filtres
+                  </Button>
+                </div>
+              ) : (
+                filteredTopics.map((topic) => {
+                  const isActive = activeTopic.id === topic.id;
+                  return (
+                    <button
+                      key={topic.id}
+                      onClick={() => handleSelectTopic(topic)}
+                      className={`w-full p-3.5 rounded-2xl transition-all duration-200 text-left cursor-pointer space-y-2 hover:scale-[1.01] active:scale-[0.98] ${
+                        isActive
+                          ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 ring-2 ring-blue-400/50'
+                          : 'bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                          isActive ? 'bg-white/20 text-white' : 'bg-blue-600/10 text-blue-600 dark:text-blue-400'
+                        }`}>
+                          {topic.categoryName}
+                        </span>
+                        <span className={`text-[10px] font-bold ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>
+                          {topic.createdAt}
+                        </span>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                        isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                      }`}>
-                        {topic.activeCount} en ligne
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+
+                      <h4 className="text-xs sm:text-sm font-black line-clamp-2 leading-snug">
+                        {topic.title}
+                      </h4>
+
+                      <div className="flex items-center justify-between text-[11px] font-bold pt-1 border-t border-white/10 dark:border-slate-800">
+                        <div className="flex items-center gap-1.5">
+                          <img src={topic.authorAvatar} alt="Avatar" className="w-4 h-4 rounded-full" />
+                          <span className="truncate max-w-[100px]">{topic.authorPseudonym}</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          isActive ? 'bg-amber-400 text-slate-950' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}>
+                          {topic.activeCount} en ligne
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
             </div>
 
           </div>
 
           {/* RIGHT COLUMN: LIVE CHAT STREAM */}
-          <div className="flex-1 bg-white dark:bg-slate-900 rounded-[32px] border-2 border-blue-200/80 dark:border-slate-800 shadow-2xl shadow-blue-600/10 flex flex-col h-[580px] sm:h-[620px] overflow-hidden">
+          <div className={`flex-1 bg-white dark:bg-slate-900 rounded-[32px] border-2 border-blue-200/80 dark:border-slate-800 shadow-2xl shadow-blue-600/10 flex-col h-[580px] sm:h-[620px] overflow-hidden ${
+            mobileTab === 'topics' ? 'hidden lg:flex' : 'flex'
+          }`}>
             
             {/* Chat Stream Header */}
             <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white flex items-center justify-between border-b border-blue-500/30 shrink-0">
               <div className="space-y-1 max-w-xl">
                 <div className="flex items-center gap-2">
+                  {/* Back to topics button on mobile */}
+                  <button
+                    onClick={() => setMobileTab('topics')}
+                    className="lg:hidden text-xs bg-white/20 hover:bg-white/30 text-white px-2.5 py-1 rounded-full font-bold transition flex items-center gap-1"
+                  >
+                    ← Salons
+                  </button>
                   <span className="bg-white/20 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full border border-white/30">
                     {activeTopic.categoryName}
                   </span>
-                  <span className="text-xs text-blue-100 font-bold">
+                  <span className="text-xs text-blue-100 font-bold hidden sm:inline">
                     Lancé par {activeTopic.authorPseudonym}
                   </span>
                 </div>
@@ -425,47 +510,61 @@ export default function ChatPage() {
 
             {/* Messages Feed */}
             <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-blue-50/40 via-white to-blue-50/20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 scrollbar-thin scrollbar-thumb-blue-400">
-              {currentMessages.map((msg) => {
-                const isUserMsg = Boolean(
-                  msg.isSelf ||
-                  msg.senderName === currentPseudonym ||
-                  (session?.user?.id && msg.senderId === session.user.id)
-                );
-
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex items-start gap-3 max-w-xl animate-fade-in ${
-                      isUserMsg ? 'ml-auto flex-row-reverse' : ''
-                    }`}
-                  >
-                    <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-0.5 shadow-md overflow-hidden shrink-0">
-                      <img
-                        src={msg.senderAvatar}
-                        alt="Avatar"
-                        className="w-full h-full object-cover rounded-[14px]"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className={`flex items-center gap-2 text-[11px] font-black ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'}`}>
-                        <span>{msg.senderName}</span>
-                        <span className="text-[10px] font-bold opacity-60">• {msg.createdAt}</span>
-                      </div>
-
-                      <div
-                        className={`p-3.5 rounded-2xl text-xs sm:text-sm font-bold leading-relaxed shadow-sm ${
-                          isUserMsg
-                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
-                            : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-tl-none'
-                        }`}
-                      >
-                        {msg.content}
-                      </div>
-                    </div>
+              {currentMessages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3 my-auto">
+                  <div className="w-14 h-14 rounded-3xl bg-blue-100 dark:bg-slate-800 text-blue-600 flex items-center justify-center shadow-inner">
+                    <Sparkles className="w-7 h-7" />
                   </div>
-                );
-              })}
+                  <h3 className="text-base font-black text-slate-800 dark:text-slate-200">
+                    Salon prêt pour la discussion !
+                  </h3>
+                  <p className="text-xs text-slate-500 max-w-sm font-medium">
+                    Soyez la première personne à envoyer un message bienveillant ou poser une question dans ce salon.
+                  </p>
+                </div>
+              ) : (
+                currentMessages.map((msg) => {
+                  const isUserMsg = Boolean(
+                    msg.isSelf ||
+                    msg.senderName === currentPseudonym ||
+                    (session?.user?.id && msg.senderId === session.user.id)
+                  );
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex items-start gap-3 max-w-xl animate-fade-in ${
+                        isUserMsg ? 'ml-auto flex-row-reverse' : ''
+                      }`}
+                    >
+                      <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-0.5 shadow-md overflow-hidden shrink-0">
+                        <img
+                          src={msg.senderAvatar}
+                          alt="Avatar"
+                          className="w-full h-full object-cover rounded-[14px]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className={`flex items-center gap-2 text-[11px] font-black ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'}`}>
+                          <span>{msg.senderName}</span>
+                          <span className="text-[10px] font-bold opacity-60">• {msg.createdAt}</span>
+                        </div>
+
+                        <div
+                          className={`p-3.5 rounded-2xl text-xs sm:text-sm font-bold leading-relaxed shadow-sm ${
+                            isUserMsg
+                              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
+                              : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-tl-none'
+                          }`}
+                        >
+                          {msg.content}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
 
               <div ref={messagesEndRef} />
             </div>
