@@ -134,8 +134,29 @@ export default function ChatPage() {
 
     loadData();
 
+    // Background polling every 3 seconds to guarantee cross-device message sync
+    const interval = setInterval(async () => {
+      const dbMsgs = await fetchAllChatMessages();
+      setMessages((prev) => {
+        let changed = false;
+        const newMap = { ...prev };
+        Object.keys(dbMsgs).forEach((tId) => {
+          const list = [...(newMap[tId] || [])];
+          dbMsgs[tId].forEach((m) => {
+            if (!list.some((exist) => exist.id === m.id)) {
+              list.push(m);
+              changed = true;
+            }
+          });
+          newMap[tId] = list;
+        });
+        return changed ? newMap : prev;
+      });
+    }, 3000);
+
     return () => {
       if (unsubscribeFunc) unsubscribeFunc();
+      clearInterval(interval);
     };
   }, []);
 

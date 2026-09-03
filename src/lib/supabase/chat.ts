@@ -40,6 +40,21 @@ export const INITIAL_TOPICS: UserChatTopic[] = [
   },
 ];
 
+let activeRealtimeChannel: any = null;
+
+function getSharedChatChannel() {
+  if (!activeRealtimeChannel) {
+    const supabase = createClient();
+    activeRealtimeChannel = supabase.channel('parlons_en_live_chat_room', {
+      config: {
+        broadcast: { self: false },
+      },
+    });
+    activeRealtimeChannel.subscribe();
+  }
+  return activeRealtimeChannel;
+}
+
 /**
  * Subscribe to Supabase Realtime broadcast channel for multi-user chat updates
  */
@@ -49,15 +64,10 @@ export function subscribeToRealtimeChat(
   onNewMessage: (msg: ChatMessage) => void,
   onNewTopic: (topic: UserChatTopic) => void
 ) {
-  const supabase = createClient();
-  const channel = supabase.channel('parlons_en_live_chat_room', {
-    config: {
-      broadcast: { self: false },
-    },
-  });
+  const channel = getSharedChatChannel();
 
   channel
-    .on('broadcast', { event: 'new_message' }, ({ payload }) => {
+    .on('broadcast', { event: 'new_message' }, ({ payload }: any) => {
       if (payload && payload.id && payload.topicId && payload.content) {
         const isSelfMsg = Boolean(
           payload.senderId === currentUserId ||
@@ -70,15 +80,14 @@ export function subscribeToRealtimeChat(
         } as ChatMessage);
       }
     })
-    .on('broadcast', { event: 'new_topic' }, ({ payload }) => {
+    .on('broadcast', { event: 'new_topic' }, ({ payload }: any) => {
       if (payload && payload.id && payload.title) {
         onNewTopic(payload as UserChatTopic);
       }
-    })
-    .subscribe();
+    });
 
   return () => {
-    supabase.removeChannel(channel);
+    // Keep shared channel alive
   };
 }
 
@@ -87,9 +96,9 @@ export function subscribeToRealtimeChat(
  */
 export async function broadcastChatMessage(msg: ChatMessage) {
   const supabase = createClient();
-  const channel = supabase.channel('parlons_en_live_chat_room');
+  const channel = getSharedChatChannel();
 
-  // Broadcast to all active users via Supabase Realtime
+  // Broadcast to all active users via shared Supabase Realtime channel
   try {
     await channel.send({
       type: 'broadcast',
@@ -121,7 +130,7 @@ export async function broadcastChatMessage(msg: ChatMessage) {
  */
 export async function broadcastChatTopic(topic: UserChatTopic) {
   const supabase = createClient();
-  const channel = supabase.channel('parlons_en_live_chat_room');
+  const channel = getSharedChatChannel();
 
   try {
     await channel.send({
