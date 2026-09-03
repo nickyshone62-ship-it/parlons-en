@@ -20,6 +20,12 @@ import {
   postAdminAnnouncementToChat,
   AdminUserItem,
 } from '@/lib/admin/admin';
+import {
+  getStoredAccountApprovals,
+  approveUserAccount,
+  rejectUserAccount,
+  UserAccountApproval,
+} from '@/lib/admin/approval';
 import { getRealPosts, deleteRealPost } from '@/lib/supabase/posts';
 import { PaymentRecord, Post, ReportItem, UserWarning } from '@/types';
 import { OrangeMoneyLogo, WaveLogo } from '@/components/ui/PaymentLogos';
@@ -56,6 +62,7 @@ export default function AdminPage() {
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
 
+  const [accountApprovals, setAccountApprovals] = useState<UserAccountApproval[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [warnings, setWarnings] = useState<UserWarning[]>([]);
@@ -63,7 +70,7 @@ export default function AdminPage() {
   const [chatMessagesMap, setChatMessagesMap] = useState<Record<string, any[]>>({});
   const [adminNoticeText, setAdminNoticeText] = useState('');
   const [posts, setPosts] = useState<Post[]>([]);
-  const [activeTab, setActiveTab] = useState<'payments' | 'users' | 'chat' | 'posts' | 'reports' | 'warnings'>('payments');
+  const [activeTab, setActiveTab] = useState<'approvals' | 'payments' | 'users' | 'chat' | 'posts' | 'reports' | 'warnings'>('approvals');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -109,12 +116,14 @@ export default function AdminPage() {
     const currentWarnings = getStoredWarnings();
     const currentUsers = getAdminUsersList();
     const currentChat = getStoredChatMessagesMap();
+    const currentApprovals = getStoredAccountApprovals();
 
     setPayments(currentPayments);
     setReports(currentReports);
     setWarnings(currentWarnings);
     setUsersList(currentUsers);
     setChatMessagesMap(currentChat);
+    setAccountApprovals(currentApprovals);
 
     try {
       const realPosts = await getRealPosts();
@@ -131,6 +140,18 @@ export default function AdminPage() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleApproveAccount = async (idOrEmail: string) => {
+    const updated = await approveUserAccount(idOrEmail);
+    setAccountApprovals(updated);
+    showToast("Compte membre approuvé avec succès ! Accès débloqué. ✅");
+  };
+
+  const handleRejectAccount = async (idOrEmail: string) => {
+    const updated = await rejectUserAccount(idOrEmail);
+    setAccountApprovals(updated);
+    showToast("Accès au compte refusé. ❌");
   };
 
   const handleUpdatePayment = (id: string, newStatus: 'approved' | 'rejected') => {
@@ -374,6 +395,23 @@ export default function AdminPage() {
         {/* TABS NAVIGATION */}
         <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto scrollbar-none">
           <button
+            onClick={() => setActiveTab('approvals')}
+            className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition flex items-center gap-2 shrink-0 ${
+              activeTab === 'approvals'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
+            }`}
+          >
+            <UserCheck className="w-4 h-4 text-emerald-300" />
+            <span>Approbations de Comptes</span>
+            {accountApprovals.filter((a) => a.status === 'pending').length > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
+                {accountApprovals.filter((a) => a.status === 'pending').length}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('payments')}
             className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition flex items-center gap-2 shrink-0 ${
               activeTab === 'payments'
@@ -450,6 +488,98 @@ export default function AdminPage() {
             <span>Avertissements ({warnings.filter((w) => w.status === 'active').length})</span>
           </button>
         </div>
+
+        {/* TAB 0: ACCOUNT APPROVALS MANAGEMENT */}
+        {activeTab === 'approvals' && (
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border-2 border-slate-200 dark:border-slate-800 shadow-lg space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-emerald-500" />
+                  <span>Validation & Approbation des Comptes Membres</span>
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Seuls les comptes formellement approuvés par l'administrateur peuvent accéder à la plateforme.
+                </p>
+              </div>
+
+              <span className="text-xs font-black px-3.5 py-1 bg-amber-400/20 text-amber-800 dark:text-amber-300 rounded-full border border-amber-400/40 shrink-0">
+                {accountApprovals.filter((a) => a.status === 'pending').length} en attente
+              </span>
+            </div>
+
+            {accountApprovals.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-xs font-bold space-y-2">
+                <UserCheck className="w-8 h-8 text-slate-400 mx-auto" />
+                <p>Aucun compte membre n'est actuellement répertorié pour approbation.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {accountApprovals.map((userAcc) => (
+                  <div
+                    key={userAcc.id}
+                    className="p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-black text-sm text-slate-900 dark:text-white">
+                          {userAcc.fullName}
+                        </span>
+                        <span className="text-xs text-slate-400 font-medium">({userAcc.email})</span>
+                        <span
+                          className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
+                            userAcc.status === 'approved'
+                              ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+                              : userAcc.status === 'rejected'
+                              ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                              : 'bg-amber-400/20 text-amber-800 dark:text-amber-300 border border-amber-400/30 animate-pulse'
+                          }`}
+                        >
+                          {userAcc.status === 'approved'
+                            ? '✅ Approuvé'
+                            : userAcc.status === 'rejected'
+                            ? '❌ Refusé'
+                            : '⏳ En attente d\'approbation'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
+                        <span>Pseudonyme : <strong className="text-blue-600 dark:text-blue-400">{userAcc.anonymousName}</strong></span>
+                        <span>• Date : {new Date(userAcc.createdAt).toLocaleDateString('fr-FR')}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-none border-slate-200/60 dark:border-slate-800">
+                      {userAcc.status !== 'approved' && (
+                        <Button
+                          onClick={() => handleApproveAccount(userAcc.id)}
+                          variant="primary"
+                          size="sm"
+                          leftIcon={<Check className="w-4 h-4" />}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-full shadow-md text-xs px-4"
+                        >
+                          Approuver le compte
+                        </Button>
+                      )}
+
+                      {userAcc.status !== 'rejected' && (
+                        <Button
+                          onClick={() => handleRejectAccount(userAcc.id)}
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<Ban className="w-4 h-4 text-rose-500" />}
+                          className="rounded-full border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 text-xs font-bold px-4"
+                        >
+                          Refuser
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* TAB 1: PAYMENTS MANAGEMENT */}
         {activeTab === 'payments' && (

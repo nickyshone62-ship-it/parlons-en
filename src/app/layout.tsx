@@ -24,6 +24,8 @@ export const metadata: Metadata = {
   authors: [{ name: "PARLONS-EN Team" }],
 };
 
+import { ApprovalGuard } from "@/components/auth/ApprovalGuard";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,7 +37,7 @@ export default function RootLayout({
       className={`${plusJakartaSans.variable} dark h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#F0F7FF] dark:bg-[#0B132B] text-slate-900 dark:text-slate-100 font-sans selection:bg-blue-500/30 selection:text-blue-600">
-        {children}
+        <ApprovalGuard>{children}</ApprovalGuard>
       </body>
     </html>
   );

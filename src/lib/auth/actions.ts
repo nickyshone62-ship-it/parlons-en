@@ -1,5 +1,6 @@
 import { createClient as createBrowserClient } from '@/lib/supabase/client';
 import { UserSession } from '@/types';
+import { registerUserForApproval, checkUserApprovalStatus } from '@/lib/admin/approval';
 
 // Short in-memory cache to prevent multiple concurrent components from making redundant auth queries
 let cachedSession: UserSession | null = null;
@@ -142,6 +143,8 @@ export async function signUpUser(
           username: email.split('@')[0],
           avatar_url: avatarUrl,
           role: 'user',
+          approval_status: 'pending',
+          is_approved: false,
           created_at: now,
           updated_at: now,
         },
@@ -150,6 +153,14 @@ export async function signUpUser(
       createUniqueAnonymousIdentity(supabase, userId),
     ]);
     anonymousName = identName;
+
+    // Register user for admin approval
+    registerUserForApproval({
+      id: userId,
+      email,
+      fullName,
+      anonymousName,
+    });
   }
 
   return { success: true, user: data.user, anonymousName };
