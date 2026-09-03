@@ -24,6 +24,7 @@ import {
   getStoredAccountApprovals,
   approveUserAccount,
   rejectUserAccount,
+  deleteUserAccount,
   UserAccountApproval,
 } from '@/lib/admin/approval';
 import { getRealPosts, deleteRealPost } from '@/lib/supabase/posts';
@@ -153,6 +154,12 @@ export default function AdminPage() {
     const updated = await rejectUserAccount(idOrEmail);
     setAccountApprovals(updated);
     showToast("Accès au compte refusé. ❌");
+  };
+
+  const handleDeleteUserAccount = async (idOrName: string) => {
+    const updated = await deleteUserAccount(idOrName);
+    setAccountApprovals(updated);
+    showToast(`Le compte utilisateur "${idOrName}" a été définitivement supprimé. 🗑️`);
   };
 
   const handleUpdatePayment = (id: string, newStatus: 'approved' | 'rejected') => {
@@ -568,12 +575,22 @@ export default function AdminPage() {
                           onClick={() => handleRejectAccount(userAcc.id)}
                           variant="outline"
                           size="sm"
-                          leftIcon={<Ban className="w-4 h-4 text-rose-500" />}
-                          className="rounded-full border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 text-xs font-bold px-4"
+                          leftIcon={<Ban className="w-4 h-4 text-amber-500" />}
+                          className="rounded-full border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950 text-amber-600 text-xs font-bold px-3.5"
                         >
                           Refuser
                         </Button>
                       )}
+
+                      <Button
+                        onClick={() => handleDeleteUserAccount(userAcc.id)}
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Trash2 className="w-4 h-4 text-rose-500" />}
+                        className="rounded-full border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 text-xs font-bold px-3.5"
+                      >
+                        Supprimer
+                      </Button>
                     </div>
                   </div>
                 ))}

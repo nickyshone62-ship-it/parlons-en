@@ -107,3 +107,46 @@ export function checkUserApprovalStatus(userId?: string, email?: string): 'pendi
 
   return record.status;
 }
+
+/**
+ * Deletes a user account completely (by ID, email, or anonymous name like "Utilisateur #3509" or "3509")
+ */
+export async function deleteUserAccount(identifier: string): Promise<UserAccountApproval[]> {
+  const supabase = createBrowserClient();
+  const cleanId = identifier.trim().toLowerCase();
+
+  try {
+    await supabase
+      .from('profiles')
+      .delete()
+      .or(`id.eq.${cleanId},email.eq.${cleanId},anonymous_name.ilike.%${cleanId}%`);
+  } catch (e) {}
+
+  const current = getStoredAccountApprovals();
+  const updated = current.filter((item) => {
+    const matchesId = item.id.toLowerCase() === cleanId;
+    const matchesEmail = item.email.toLowerCase() === cleanId;
+    const matchesAnon = item.anonymousName.toLowerCase().includes(cleanId);
+    return !matchesId && !matchesEmail && !matchesAnon;
+  });
+
+  saveStoredAccountApprovals(updated);
+
+  if (typeof window !== 'undefined') {
+    try {
+      // Clear payments & warnings associated with this user
+      const payments = localStorage.getItem('parlons_en_admin_payments_v1');
+      if (payments) {
+        const parsed = JSON.parse(payments);
+        const filtered = parsed.filter(
+          (p: any) =>
+            !p.user_email?.toLowerCase().includes(cleanId) &&
+            !p.user_name?.toLowerCase().includes(cleanId)
+        );
+        localStorage.setItem('parlons_en_admin_payments_v1', JSON.stringify(filtered));
+      }
+    } catch (e) {}
+  }
+
+  return updated;
+}
