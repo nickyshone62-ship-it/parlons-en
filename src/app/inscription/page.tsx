@@ -353,9 +353,9 @@ export default function InscriptionPage() {
 
                   {/* Instructions per Payment Method */}
                   {paymentMethod === 'orange_money' ? (
-                    <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-amber-300 dark:border-slate-800 space-y-2.5">
-                      <div className="text-xs font-black text-slate-800 dark:text-slate-200 flex items-center justify-between">
-                        <span>📱 Code USSD Orange Money (Cliquez pour composer) :</span>
+                    <div className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-amber-300 dark:border-slate-800 space-y-2.5 overflow-hidden">
+                      <div className="text-xs font-black text-slate-800 dark:text-slate-200 flex flex-wrap items-center justify-between gap-1.5">
+                        <span>📱 Code USSD Orange Money :</span>
                         <span className="text-[10px] text-[#FF6600] font-extrabold uppercase bg-orange-100 dark:bg-orange-950 px-2 py-0.5 rounded-full border border-orange-300">
                           Redirection Appel 📞
                         </span>
@@ -363,21 +363,21 @@ export default function InscriptionPage() {
                       
                       <a
                         href="tel:*144*2*1*06887330*500%23"
-                        className="flex items-center justify-between gap-2 bg-gradient-to-r from-[#FF6600]/15 via-orange-50 to-[#FF6600]/25 dark:from-[#FF6600]/25 dark:to-slate-950 p-3 rounded-xl border-2 border-[#FF6600] hover:bg-[#FF6600]/20 transition group shadow-sm cursor-pointer"
+                        className="flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-gradient-to-r from-[#FF6600]/15 via-orange-50 to-[#FF6600]/25 dark:from-[#FF6600]/25 dark:to-slate-950 p-3 rounded-xl border-2 border-[#FF6600] hover:bg-[#FF6600]/20 transition group shadow-sm cursor-pointer w-full text-center sm:text-left"
                         title="Cliquer pour composer le code USSD sur votre téléphone"
                       >
-                        <div className="flex items-center gap-2">
-                          <PhoneCall className="w-5 h-5 text-[#FF6600] animate-pulse" />
-                          <code className="text-xs sm:text-sm font-black font-mono text-[#FF6600] tracking-wider group-hover:underline">
+                        <div className="flex items-center justify-center sm:justify-start gap-2 min-w-0">
+                          <PhoneCall className="w-5 h-5 text-[#FF6600] animate-pulse shrink-0" />
+                          <code className="text-xs sm:text-sm font-black font-mono text-[#FF6600] tracking-wider group-hover:underline truncate">
                             {USSD_CODE}
                           </code>
                         </div>
-                        <span className="px-3 py-1.5 bg-[#FF6600] text-white font-black text-xs rounded-lg shadow-sm flex items-center gap-1 shrink-0">
+                        <span className="w-full sm:w-auto px-4 py-2 bg-[#FF6600] text-white font-black text-xs rounded-lg shadow-sm flex items-center justify-center gap-1.5 shrink-0">
                           <span>Appeler / Lancer 📞</span>
                         </span>
                       </a>
 
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
                         <span>Destinataire : <strong>06887330</strong> (500 F)</span>
                         <button
                           type="button"
