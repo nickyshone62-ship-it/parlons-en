@@ -1,0 +1,666 @@
+import { createClient as createBrowserClient } from '@/lib/supabase/client';
+import { createUniqueAnonymousIdentity } from '@/lib/auth/actions';
+import { MOCK_CATEGORIES } from '@/data/mockData';
+import { savePostSolutionStatus, getPostSolutionStatus, getPostViews } from '@/lib/viewsManager';
+import { Post, Answer, Category, PostStatus } from '@/types';
+
+const BLACKLISTED_POST_IDS = new Set([
+  '1fbdc918-a000-4635-b62f-42ec45a8d3ab',
+  '52fbabd4-41d0-46df-98bd-093de0de1b17',
+]);
+
+/**
+ * Ensures a valid profile and anonymous identity exist in public.profiles and public.anonymous_identities
+ * to satisfy foreign key constraints (e.g. posts_author_id_fkey) before post/comment insertion.
+ */
+async function ensureUserProfileAndIdentity(
+  supabase: ReturnType<typeof createBrowserClient>,
+  userId: string
+) {
+  const now = new Date().toISOString();
+
+  await Promise.all([
+    supabase.from('profiles').upsert(
+      {
+        id: userId,
+        username: `anonyme_${userId.slice(0, 6)}`,
+        role: 'user',
+        created_at: now,
+        updated_at: now,
+      },
+      { onConflict: 'id' }
+    ),
+    createUniqueAnonymousIdentity(supabase, userId),
+  ]);
+}
+
+/**
+ * Deletes a post from public.posts using the authenticated user session
+ */
+export async function deleteRealPost(postId: string) {
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  BLACKLISTED_POST_IDS.add(postId);
+
+  await supabase.from('comments').delete().eq('post_id', postId);
+
+  if (user) {
+    await supabase.from('posts').delete().eq('id', postId);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Creates a new problem / post in public.posts
+ */
+export async function createRealPost(categoryId: string, title: string, content: string) {
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Vous devez être connecté pour publier un problème." };
+  }
+
+  await ensureUserProfileAndIdentity(supabase, user.id);
+
+  let targetCategoryId = categoryId;
+  const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(categoryId);
+
+  if (!isUuid) {
+    const { data: dbCategories } = await supabase.from('categories').select('id, slug, name');
+    if (dbCategories && dbCategories.length > 0) {
+      const mockCat = MOCK_CATEGORIES.find((c) => c.id === categoryId);
+      const matched = dbCategories.find(
+        (c) =>
+          c.id === categoryId ||
+          c.slug === mockCat?.slug ||
+          c.name.toLowerCase() === mockCat?.name.toLowerCase()
+      );
+      targetCategoryId = matched ? matched.id : dbCategories[0].id;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('posts')
+    .insert([
+      {
+        author_id: user.id,
+        category_id: targetCategoryId,
+        title: title.trim(),
+        content: content.trim(),
+        status: 'open',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ])
+    .select('id')
+    .single();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, postId: data.id };
+}
+
+/**
+ * Fetches all real posts with parallel query execution (categories, identities, comments) for maximum speed.
+ */
+export async function getRealPosts(): Promise<Post[]> {
+  const supabase = createBrowserClient();
+
+  const { data: postsData, error: postsError } = await supabase
+    .from('posts')
+    .select(`
+      id,
+      author_id,
+      category_id,
+      title,
+      content,
+      status,
+      created_at
+    `)
+    .order('created_at', { ascending: false });
+
+  if (postsError || !postsData) return [];
+
+  const filteredData = postsData.filter((p) => !BLACKLISTED_POST_IDS.has(p.id));
+
+  if (filteredData.length === 0) return [];
+
+  const authorIds = Array.from(new Set(filteredData.map((p) => p.author_id)));
+  const postIds = filteredData.map((p) => p.id);
+
+  // Parallel execution of all relation queries
+  const [{ data: categories }, { data: identities }, { data: comments }] = await Promise.all([
+    supabase.from('categories').select('id, name, slug'),
+    supabase.from('anonymous_identities').select('user_id, anonymous_name').in('user_id', authorIds),
+    supabase.from('comments').select('id, post_id').in('post_id', postIds),
+  ]);
+
+  const catMap = new Map((categories || []).map((c) => [c.id, c]));
+  const identMap = new Map((identities || []).map((i) => [i.user_id, i.anonymous_name]));
+
+  const commentsCountMap = new Map<string, number>();
+  (comments || []).forEach((c) => {
+    commentsCountMap.set(c.post_id, (commentsCountMap.get(c.post_id) || 0) + 1);
+  });
+
+  return filteredData.map((p) => {
+    const cat = catMap.get(p.category_id);
+    const anonymousName = identMap.get(p.author_id) || 'Utilisateur Anonyme';
+    const answersCount = commentsCountMap.get(p.id) || 0;
+
+    const savedLocal = getPostSolutionStatus(p.id);
+
+    let normalizedStatus: PostStatus = 'open';
+    if (savedLocal?.status === 'resolved' || p.status?.startsWith('resolved') || p.status === 'resolved') {
+      normalizedStatus = 'resolved';
+    } else if (savedLocal?.status === 'testing' || p.status?.startsWith('testing') || p.status === 'testing') {
+      normalizedStatus = 'testing';
+    }
+
+    return {
+      id: p.id,
+      title: p.title,
+      content: p.content,
+      category_id: p.category_id,
+      category_name: cat?.name || 'Général',
+      category_slug: cat?.slug || 'general',
+      created_at: formatRelativeTime(p.created_at),
+      views_count: getPostViews(p.id),
+      upvotes_count: 0,
+      answers_count: answersCount,
+      status: normalizedStatus,
+      is_demo: false,
+      author_pseudonym: anonymousName,
+      author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(anonymousName)}`,
+    };
+  });
+}
+
+/**
+ * Fetches category and all posts matching this category in parallel
+ */
+export async function getPostsByCategory(slugOrId: string): Promise<{ category: Category | null; posts: Post[] }> {
+  const supabase = createBrowserClient();
+
+  const { data: categories } = await supabase.from('categories').select('*');
+  const foundCat = (categories || []).find((c) => String(c.id) === slugOrId || c.slug === slugOrId);
+  const mockCat = MOCK_CATEGORIES.find((c) => c.slug === slugOrId || c.id === slugOrId);
+
+  const category: Category | null = foundCat
+    ? {
+        id: String(foundCat.id),
+        name: foundCat.name || 'Catégorie',
+        slug: foundCat.slug || slugOrId,
+        description: foundCat.description || "Questions et difficultés partagées par la communauté.",
+        icon: foundCat.icon || 'HeartHandshake',
+      }
+    : mockCat || null;
+
+  if (!category) return { category: null, posts: [] };
+
+  const allPosts = await getRealPosts();
+  const categoryPosts = allPosts.filter(
+    (p) =>
+      p.category_id === category.id ||
+      p.category_slug === category.slug ||
+      p.category_name.toLowerCase() === category.name.toLowerCase() ||
+      (mockCat && (p.category_id === mockCat.id || p.category_slug === mockCat.slug))
+  );
+
+  return { category, posts: categoryPosts };
+}
+
+/**
+ * Fetches single post detail with parallel query execution (category, author, comments count)
+ */
+export async function getRealPostById(postId: string): Promise<{ post: Post | null; isAuthor: boolean }> {
+  if (BLACKLISTED_POST_IDS.has(postId)) {
+    return { post: null, isAuthor: false };
+  }
+
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data: p, error } = await supabase
+    .from('posts')
+    .select(`
+      id,
+      author_id,
+      category_id,
+      title,
+      content,
+      status,
+      created_at
+    `)
+    .eq('id', postId)
+    .maybeSingle();
+
+  if (error || !p || BLACKLISTED_POST_IDS.has(p.id)) return { post: null, isAuthor: false };
+
+  // Parallel execution for post relations
+  const [{ data: cat }, { data: ident }, { count }] = await Promise.all([
+    supabase.from('categories').select('name, slug').eq('id', p.category_id).maybeSingle(),
+    supabase.from('anonymous_identities').select('anonymous_name').eq('user_id', p.author_id).maybeSingle(),
+    supabase.from('comments').select('id', { count: 'exact', head: true }).eq('post_id', postId),
+  ]);
+
+  let normalizedStatus: PostStatus = 'open';
+  let testingCommentId: string | null = null;
+  let resolvedCommentId: string | null = null;
+
+  const savedLocal = getPostSolutionStatus(postId);
+  if (savedLocal?.status === 'resolved') {
+    normalizedStatus = 'resolved';
+    resolvedCommentId = savedLocal.commentId || null;
+  } else if (savedLocal?.status === 'testing') {
+    normalizedStatus = 'testing';
+    testingCommentId = savedLocal.commentId || null;
+  }
+
+  if (p.status?.startsWith('testing:')) {
+    normalizedStatus = 'testing';
+    testingCommentId = p.status.split('testing:')[1];
+  } else if (p.status?.startsWith('resolved:')) {
+    normalizedStatus = 'resolved';
+    resolvedCommentId = p.status.split('resolved:')[1];
+  } else if (p.status === 'resolved') {
+    normalizedStatus = 'resolved';
+  } else if (p.status === 'testing') {
+    normalizedStatus = 'testing';
+  }
+
+  const pseudonym = ident?.anonymous_name || 'Utilisateur Anonyme';
+
+  const post: Post = {
+    id: p.id,
+    title: p.title,
+    content: p.content,
+    category_id: p.category_id,
+    category_name: cat?.name || 'Général',
+    category_slug: cat?.slug || 'general',
+    created_at: formatRelativeTime(p.created_at),
+    views_count: getPostViews(p.id),
+    upvotes_count: 0,
+    answers_count: count || 0,
+    status: normalizedStatus,
+    testing_comment_id: testingCommentId,
+    resolved_comment_id: resolvedCommentId,
+    is_demo: false,
+    author_pseudonym: pseudonym,
+    author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(pseudonym)}`,
+  };
+
+  const isAuthor = Boolean(user && user.id === p.author_id);
+
+  return { post, isAuthor };
+}
+
+/**
+ * Adds a new comment / answer to a post in public.comments
+ */
+export async function createRealComment(postId: string, content: string) {
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Vous devez être connecté pour répondre." };
+  }
+
+  await ensureUserProfileAndIdentity(supabase, user.id);
+
+  const { data, error } = await supabase
+    .from('comments')
+    .insert([
+      {
+        post_id: postId,
+        author_id: user.id,
+        content: content.trim(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ])
+    .select('id')
+    .single();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, commentId: data.id };
+}
+
+/**
+ * Fetches comments for a post with parallel queries (post status, comments, author identities, votes)
+ */
+export async function getRealComments(postId: string): Promise<(Answer & { hasVoted: boolean })[]> {
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Parallel fetching of post status and comments list
+  const [{ data: postData }, { data: comments, error }] = await Promise.all([
+    supabase.from('posts').select('status').eq('id', postId).maybeSingle(),
+    supabase.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true }),
+  ]);
+
+  if (error || !comments || comments.length === 0) return [];
+
+  let testingCommentId: string | null = null;
+  let resolvedCommentId: string | null = null;
+
+  const savedLocal = getPostSolutionStatus(postId);
+  if (savedLocal?.status === 'testing' && savedLocal.commentId) {
+    testingCommentId = savedLocal.commentId;
+  } else if (savedLocal?.status === 'resolved' && savedLocal.commentId) {
+    resolvedCommentId = savedLocal.commentId;
+  }
+
+  if (postData?.status?.startsWith('testing:')) {
+    testingCommentId = postData.status.split('testing:')[1];
+  } else if (postData?.status?.startsWith('resolved:')) {
+    resolvedCommentId = postData.status.split('resolved:')[1];
+  }
+
+  const authorIds = Array.from(new Set(comments.map((c) => c.author_id)));
+  const commentIds = comments.map((c) => c.id);
+
+  // Parallel fetching of identities and votes
+  const [{ data: identities }, { data: votes }] = await Promise.all([
+    supabase.from('anonymous_identities').select('user_id, anonymous_name').in('user_id', authorIds),
+    supabase.from('votes').select('comment_id, user_id, vote_type').in('comment_id', commentIds),
+  ]);
+
+  const identMap = new Map((identities || []).map((i) => [i.user_id, i.anonymous_name]));
+  const likesCountMap = new Map<string, number>();
+  const helpedCountMap = new Map<string, number>();
+  const userVotedSet = new Set<string>();
+  const userHelpedSet = new Set<string>();
+
+  (votes || []).forEach((v) => {
+    if (!v.vote_type || v.vote_type === 'like' || v.vote_type === 'useful') {
+      likesCountMap.set(v.comment_id, (likesCountMap.get(v.comment_id) || 0) + 1);
+      if (user && v.user_id === user.id) userVotedSet.add(v.comment_id);
+    } else if (v.vote_type === 'helped_me') {
+      helpedCountMap.set(v.comment_id, (helpedCountMap.get(v.comment_id) || 0) + 1);
+      if (user && v.user_id === user.id) userHelpedSet.add(v.comment_id);
+    } else if (v.vote_type === 'author_solution') {
+      resolvedCommentId = v.comment_id;
+    }
+  });
+
+  const result: (Answer & { hasVoted: boolean })[] = comments.map((c) => {
+    let solStatus: 'none' | 'testing' | 'confirmed' = 'none';
+    if (resolvedCommentId === c.id) solStatus = 'confirmed';
+    else if (testingCommentId === c.id) solStatus = 'testing';
+
+    const pseudonym = identMap.get(c.author_id) || 'Utilisateur Anonyme';
+
+    return {
+      id: c.id,
+      post_id: c.post_id,
+      content: c.content,
+      created_at: formatRelativeTime(c.created_at),
+      upvotes_count: likesCountMap.get(c.id) || 0,
+      is_accepted: solStatus === 'confirmed',
+      is_demo: false,
+      author_pseudonym: pseudonym,
+      author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(pseudonym)}`,
+      hasVoted: userVotedSet.has(c.id),
+      solution_status: solStatus,
+      helped_users_count: helpedCountMap.get(c.id) || 0,
+      has_helped_user: userHelpedSet.has(c.id),
+    };
+  });
+
+  return result.sort((a, b) => {
+    if (a.solution_status === 'confirmed' && b.solution_status !== 'confirmed') return -1;
+    if (b.solution_status === 'confirmed' && a.solution_status !== 'confirmed') return 1;
+    if (a.solution_status === 'testing' && b.solution_status !== 'testing') return -1;
+    if (b.solution_status === 'testing' && a.solution_status !== 'testing') return 1;
+    return 0;
+  });
+}
+
+/**
+ * Toggles a useful vote on a comment for connected users or visitors seamlessly
+ */
+export async function toggleCommentVote(commentId: string) {
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: true, action: 'guest_toggled' };
+  }
+
+  const { data: existingVote } = await supabase
+    .from('votes')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('comment_id', commentId)
+    .or('vote_type.eq.like,vote_type.eq.useful,vote_type.is.null')
+    .maybeSingle();
+
+  if (existingVote) {
+    const { error } = await supabase.from('votes').delete().eq('id', existingVote.id);
+    if (error) return { success: false, error: error.message };
+    return { success: true, action: 'removed' };
+  } else {
+    const { error } = await supabase.from('votes').insert([
+      {
+        user_id: user.id,
+        comment_id: commentId,
+        vote_type: 'like',
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    if (error) return { success: false, error: error.message };
+    return { success: true, action: 'added' };
+  }
+}
+
+/**
+ * Toggles "Cette solution m'a aussi aidé" (helped_me) on a comment
+ */
+export async function toggleHelpedMeVote(commentId: string) {
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: true, action: 'guest_toggled' };
+  }
+
+  const { data: existing } = await supabase
+    .from('votes')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('comment_id', commentId)
+    .eq('vote_type', 'helped_me')
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase.from('votes').delete().eq('id', existing.id);
+    if (error) return { success: false, error: error.message };
+    return { success: true, action: 'removed' };
+  } else {
+    const { error } = await supabase.from('votes').insert([
+      {
+        user_id: user.id,
+        comment_id: commentId,
+        vote_type: 'helped_me',
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    if (error) return { success: false, error: error.message };
+    return { success: true, action: 'added' };
+  }
+}
+
+/**
+ * Post Author selects a comment as track to test (💡 Choisir cette piste)
+ */
+export async function chooseTrackToTest(postId: string, commentId: string) {
+  savePostSolutionStatus(postId, 'testing', commentId);
+
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from('posts')
+    .update({ status: `testing:${commentId}`, updated_at: new Date().toISOString() })
+    .eq('id', postId);
+
+  if (error && user) {
+    await supabase
+      .from('posts')
+      .update({ status: `testing:${commentId}`, updated_at: new Date().toISOString() })
+      .eq('id', postId)
+      .eq('author_id', user.id);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Post Author evaluates tested track (worked = true -> 🏆 Solution confirmée, worked = false -> reset to open)
+ */
+export async function evaluateTestedTrack(postId: string, commentId: string, worked: boolean) {
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (worked) {
+    savePostSolutionStatus(postId, 'resolved', commentId);
+
+    await supabase
+      .from('posts')
+      .update({ status: `resolved:${commentId}`, updated_at: new Date().toISOString() })
+      .eq('id', postId);
+
+    if (user) {
+      try {
+        await supabase.from('votes').insert([
+          {
+            user_id: user.id,
+            comment_id: commentId,
+            vote_type: 'author_solution',
+            created_at: new Date().toISOString(),
+          },
+        ]);
+      } catch {
+        // Ignore duplicate
+      }
+    }
+
+    return { success: true, status: 'resolved' };
+  } else {
+    savePostSolutionStatus(postId, 'open');
+
+    await supabase
+      .from('posts')
+      .update({ status: 'open', updated_at: new Date().toISOString() })
+      .eq('id', postId);
+
+    return { success: true, status: 'open' };
+  }
+}
+
+/**
+ * Marks a post status as resolved (legacy direct button)
+ */
+export async function markPostAsResolved(postId: string) {
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Non autorisé." };
+  }
+
+  const { error } = await supabase
+    .from('posts')
+    .update({ status: 'resolved', updated_at: new Date().toISOString() })
+    .eq('id', postId)
+    .eq('author_id', user.id);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Reports a post or comment for moderation
+ */
+export async function reportContent(postId?: string, commentId?: string, reason?: string) {
+  const supabase = createBrowserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Vous devez être connecté pour signaler un contenu." };
+  }
+
+  const { error } = await supabase.from('reports').insert([
+    {
+      reporter_id: user.id,
+      post_id: postId || null,
+      comment_id: commentId || null,
+      reason: reason || 'Contenu inapproprié',
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    },
+  ]);
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+
+  return { success: true };
+}
+
+function formatRelativeTime(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "À l'instant";
+    if (diffInSeconds < 3600) return `Il y a ${Math.floor(diffInSeconds / 60)} min`;
+    if (diffInSeconds < 86400) return `Il y a ${Math.floor(diffInSeconds / 3600)}h`;
+    if (diffInSeconds < 604800) return `Il y a ${Math.floor(diffInSeconds / 86400)}j`;
+
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  } catch {
+    return "Récemment";
+  }
+}
+
+/**
+ * Purges all posts, comments, votes, and anonymous identities from Supabase database to start clean.
+ */
+export async function deleteAllDiscussionsAndResetDatabase() {
+  const supabase = createBrowserClient();
+  const dummyUUID = '00000000-0000-0000-0000-000000000000';
+
+  try {
+    await Promise.all([
+      supabase.from('votes').delete().neq('id', dummyUUID),
+      supabase.from('comments').delete().neq('id', dummyUUID),
+      supabase.from('reports').delete().neq('id', dummyUUID),
+    ]);
+
+    await supabase.from('posts').delete().neq('id', dummyUUID);
+    await supabase.from('anonymous_identities').delete().neq('id', dummyUUID);
+
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      sessionStorage.clear();
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || "Erreur lors de la réinitialisation" };
+  }
+}
