@@ -143,13 +143,51 @@ export const NewPostModal: React.FC<NewPostModalProps> = ({
       description="Exprimez-vous librement en toute confidentialité. Votre publication sera associée uniquement à votre pseudo anonyme."
       maxWidth="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {errorMessage && (
-          <div className="p-3 bg-rose-500/10 border border-rose-300 rounded-2xl text-rose-600 dark:text-rose-300 text-xs font-bold flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMessage}</span>
+      {!isAuth ? (
+        <div className="py-6 px-4 text-center space-y-5 bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-amber-500/10 dark:from-slate-900 dark:to-slate-950 rounded-3xl border-2 border-amber-400/60 dark:border-amber-500/40 p-6 shadow-xl">
+          <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-br from-amber-400 to-yellow-500 text-slate-950 flex items-center justify-center text-3xl shadow-lg">
+            🔒
           </div>
-        )}
+
+          <div className="space-y-2 max-w-md mx-auto">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white">
+              Inscription obligatoire pour publier
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-bold leading-relaxed">
+              Pour préserver la sécurité et la bienveillance de notre communauté, seuls les membres inscrits (500 FCFA) peuvent créer une publication.
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 max-w-sm mx-auto">
+            <Button
+              onClick={() => {
+                onClose();
+                router.push('/inscription');
+              }}
+              className="w-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black rounded-full shadow-lg py-3 border-none text-xs sm:text-sm cursor-pointer"
+            >
+              Créer mon compte (500 F) 🚀
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                onClose();
+                router.push('/connexion');
+              }}
+              className="w-full rounded-full border-2 border-blue-500 text-blue-600 dark:text-blue-400 font-black text-xs sm:text-sm py-3 cursor-pointer"
+            >
+              Se connecter 🔑
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {errorMessage && (
+            <div className="p-3 bg-rose-500/10 border border-rose-300 rounded-2xl text-rose-600 dark:text-rose-300 text-xs font-bold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
           {/* ÉTAPE 1: SÉLECTION DE LA CATÉGORIE (TOTALEMENT SÉPARÉE ET DISTINCTE) */}
           <div className="space-y-4 p-5 bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 rounded-3xl border-2 border-blue-300/80 dark:border-slate-800 shadow-lg">
@@ -305,6 +343,7 @@ export const NewPostModal: React.FC<NewPostModalProps> = ({
             </Button>
           </div>
         </form>
+      )}
       </Modal>
     );
   };

@@ -72,37 +72,26 @@ export async function createRealPost(
   } catch (e) {}
 
   if (!user) {
-    try {
-      const { data: anonData } = await supabase.auth.signInAnonymously();
-      user = anonData?.user || null;
-    } catch (e) {
-      console.warn("Notice: Anonymous sign-in fallback", e);
-    }
+    return {
+      success: false,
+      error: "Vous devez être inscrit (500 FCFA) et connecté pour pouvoir créer une publication sur la plateforme.",
+    };
   }
 
   let anonymousName = 'Utilisateur #4821';
 
-  if (user) {
-    try {
-      await ensureUserProfileAndIdentity(supabase, user.id);
-      const { data: ident } = await supabase
-        .from('anonymous_identities')
-        .select('anonymous_name')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (ident?.anonymous_name) {
-        anonymousName = ident.anonymous_name;
-      }
-    } catch (e) {
-      console.error("Identity setup notice:", e);
+  try {
+    await ensureUserProfileAndIdentity(supabase, user.id);
+    const { data: ident } = await supabase
+      .from('anonymous_identities')
+      .select('anonymous_name')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (ident?.anonymous_name) {
+      anonymousName = ident.anonymous_name;
     }
-  } else if (typeof window !== 'undefined') {
-    let savedGuest = localStorage.getItem('parlons_en_guest_pseudo');
-    if (!savedGuest) {
-      savedGuest = `Utilisateur #${1000 + Math.floor(Math.random() * 8999)}`;
-      localStorage.setItem('parlons_en_guest_pseudo', savedGuest);
-    }
-    anonymousName = savedGuest;
+  } catch (e) {
+    console.error("Identity setup notice:", e);
   }
 
   let targetCategoryId = categoryId;
