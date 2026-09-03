@@ -18,6 +18,8 @@ import {
   getStoredChatMessagesMap,
   deleteChatMessageFromTopic,
   postAdminAnnouncementToChat,
+  sendAdminReplyToTopic,
+  startOrGetAdminUserChatTopic,
   AdminUserItem,
 } from '@/lib/admin/admin';
 import {
@@ -79,6 +81,11 @@ export default function AdminPage() {
 
   // Warning Modal State
   const [warningTarget, setWarningTarget] = useState<{ userPseudonym: string; postTitle?: string } | null>(null);
+
+  // Admin Direct Chat State
+  const [topicReplyMap, setTopicReplyMap] = useState<Record<string, string>>({});
+  const [directChatUser, setDirectChatUser] = useState<{ userPseudonym: string; userName?: string; topicId: string } | null>(null);
+  const [directChatInputText, setDirectChatInputText] = useState('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -211,6 +218,29 @@ export default function AdminPage() {
     setChatMessagesMap(updated);
     setAdminNoticeText('');
     showToast('Message officiel de modération publié dans le chat ! 📢');
+  };
+
+  const handleSendAdminTopicReply = (topicId: string) => {
+    const text = topicReplyMap[topicId]?.trim();
+    if (!text) return;
+    const updated = sendAdminReplyToTopic(text, topicId);
+    setChatMessagesMap({ ...updated });
+    setTopicReplyMap({ ...topicReplyMap, [topicId]: '' });
+    showToast('Réponse transmise au salon ! 💬');
+  };
+
+  const handleOpenDirectChat = (userPseudonym: string, userName?: string) => {
+    const { topicId } = startOrGetAdminUserChatTopic(userPseudonym, userName);
+    setDirectChatUser({ userPseudonym, userName, topicId });
+  };
+
+  const handleSendDirectMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!directChatUser || !directChatInputText.trim()) return;
+    const updated = sendAdminReplyToTopic(directChatInputText, directChatUser.topicId);
+    setChatMessagesMap({ ...updated });
+    setDirectChatInputText('');
+    showToast(`Message transmis à ${directChatUser.userPseudonym} ! 💬`);
   };
 
   const stats = getAdminStats();
@@ -825,17 +855,27 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td className="p-3 text-right">
-                        <button
-                          onClick={() =>
-                            setWarningTarget({
-                              userPseudonym: userItem.anonymousName,
-                            })
-                          }
-                          className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-[11px] transition shadow-xs inline-flex items-center gap-1"
-                        >
-                          <ShieldAlert className="w-3.5 h-3.5" />
-                          <span>Avertir ⚠️</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenDirectChat(userItem.anonymousName, userItem.name)}
+                            className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-[11px] transition shadow-xs inline-flex items-center gap-1 cursor-pointer"
+                            title="Chatter directement avec cet utilisateur"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span>Chatter 💬</span>
+                          </button>
+                          <button
+                            onClick={() =>
+                              setWarningTarget({
+                                userPseudonym: userItem.anonymousName,
+                              })
+                            }
+                            className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-xl text-[11px] transition shadow-xs inline-flex items-center gap-1"
+                          >
+                            <ShieldAlert className="w-3.5 h-3.5" />
+                            <span>Avertir ⚠️</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -930,6 +970,13 @@ export default function AdminPage() {
 
                           <div className="flex items-center gap-1.5 shrink-0">
                             <button
+                              onClick={() => handleOpenDirectChat(msg.senderName)}
+                              className="p-1.5 bg-blue-500/20 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black transition cursor-pointer"
+                              title="Chatter directement avec cet utilisateur"
+                            >
+                              💬 Chatter
+                            </button>
+                            <button
                               onClick={() =>
                                 setWarningTarget({
                                   userPseudonym: msg.senderName,
@@ -953,6 +1000,32 @@ export default function AdminPage() {
                       ))}
                     </div>
                   )}
+
+                  {/* Fast Admin Reply to this topic */}
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleSendAdminTopicReply(topicId);
+                    }}
+                    className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-800"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Répondre dans ce salon en tant qu'Administrateur 🛡️..."
+                      value={topicReplyMap[topicId] || ''}
+                      onChange={(e) =>
+                        setTopicReplyMap({ ...topicReplyMap, [topicId]: e.target.value })
+                      }
+                      className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-blue-400 text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="submit"
+                      className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-xs flex items-center gap-1 shrink-0 shadow-md cursor-pointer"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Répondre 💬</span>
+                    </button>
+                  </form>
                 </div>
               ))}
             </div>
@@ -1183,6 +1256,85 @@ export default function AdminPage() {
                 Fermer l'aperçu
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* DIRECT ADMIN <-> USER CHAT MODAL */}
+      {directChatUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-3 sm:p-4">
+          <div className="bg-white dark:bg-slate-900 border-2 border-blue-500/50 rounded-3xl p-5 sm:p-6 w-full max-w-xl space-y-4 shadow-2xl animate-fade-in text-slate-900 dark:text-white">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black shadow-md">
+                  🛡️
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <span>Chat Direct avec</span>
+                    <strong className="text-blue-600 dark:text-blue-400">{directChatUser.userPseudonym}</strong>
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-bold">
+                    {directChatUser.userName ? `Nom d'origine : ${directChatUser.userName} • ` : ''}Modération Officielle
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setDirectChatUser(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center justify-center text-sm font-bold transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Chat Messages Feed for this direct user topic */}
+            <div className="space-y-2.5 max-h-72 overflow-y-auto p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 scrollbar-thin scrollbar-thumb-blue-400">
+              {(chatMessagesMap[directChatUser.topicId] || []).length === 0 ? (
+                <div className="py-8 text-center space-y-1">
+                  <p className="text-xs font-black text-slate-400">Aucun message direct échangé pour le moment.</p>
+                  <p className="text-[11px] text-slate-500">Tapez un message ci-dessous pour démarrer l'échange en tant qu'Administrateur.</p>
+                </div>
+              ) : (
+                (chatMessagesMap[directChatUser.topicId] || []).map((msg: any) => (
+                  <div
+                    key={msg.id}
+                    className={`p-3 rounded-2xl border text-xs space-y-1 ${
+                      msg.senderId === 'admin-official'
+                        ? 'bg-blue-600/10 border-blue-400/60 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 ml-6'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 mr-6 shadow-xs'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 text-[10px] font-black">
+                      <span className={msg.senderId === 'admin-official' ? 'text-blue-600 dark:text-blue-400 font-extrabold' : 'text-slate-500'}>
+                        {msg.senderName}
+                      </span>
+                      <span className="text-slate-400 font-normal">{msg.createdAt}</span>
+                    </div>
+                    <p className="font-semibold leading-relaxed">{msg.content}</p>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Send Direct Message Form */}
+            <form onSubmit={handleSendDirectAdminMessage} className="flex items-center gap-2 pt-1">
+              <input
+                type="text"
+                placeholder={`Écrire un message direct à ${directChatUser.userPseudonym}...`}
+                value={directChatInputText}
+                onChange={(e) => setDirectChatInputText(e.target.value)}
+                className="flex-1 px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-950 border-2 border-blue-400/80 text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs rounded-2xl flex items-center gap-1.5 shrink-0 shadow-md cursor-pointer"
+              >
+                <Send className="w-4 h-4" />
+                <span>Envoyer 💬</span>
+              </button>
+            </form>
           </div>
         </div>
       )}

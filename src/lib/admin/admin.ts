@@ -205,8 +205,9 @@ export function postAdminAnnouncementToChat(content: string, topicId: string = '
     senderName: '📢 Administrateur (Modération)',
     senderAvatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=AdminOfficialBadge',
     content: `📢 [MESSAGE OFFICIEL D'ADMINISTRATION] : ${content.trim()}`,
-    createdAt: "À l'instant",
+    createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     isSelf: false,
+    isAdminMessage: true,
   };
 
   if (!messagesMap[topicId]) {
@@ -220,6 +221,62 @@ export function postAdminAnnouncementToChat(content: string, topicId: string = '
   }
 
   return messagesMap;
+}
+
+export function sendAdminReplyToTopic(content: string, topicId: string): Record<string, any[]> {
+  const messagesMap = getStoredChatMessagesMap();
+  const newAdminMessage = {
+    id: `admin-reply-${Date.now()}`,
+    topicId,
+    senderId: 'admin-official',
+    senderName: '🛡️ Administrateur',
+    senderAvatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=AdminOfficialBadge',
+    content: content.trim(),
+    createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    isSelf: false,
+    isAdminMessage: true,
+  };
+
+  if (!messagesMap[topicId]) {
+    messagesMap[topicId] = [];
+  }
+
+  messagesMap[topicId] = [...messagesMap[topicId], newAdminMessage];
+
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messagesMap));
+  }
+
+  return messagesMap;
+}
+
+export function startOrGetAdminUserChatTopic(userPseudonym: string, userName?: string): { topicId: string; topicTitle: string } {
+  const cleanId = `admin-chat-${userPseudonym.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+  const topicTitle = `💬 Support Direct : ${userPseudonym}${userName ? ` (${userName})` : ''}`;
+
+  if (typeof window !== 'undefined') {
+    try {
+      const savedTopics = localStorage.getItem('parlons_en_chat_topics_v2');
+      const topicsList = savedTopics ? JSON.parse(savedTopics) : [];
+      const exists = topicsList.some((t: any) => t.id === cleanId);
+      if (!exists) {
+        const newTopic = {
+          id: cleanId,
+          title: topicTitle,
+          categorySlug: 'general',
+          categoryName: 'Support Administrateur',
+          authorPseudonym: 'Modération Officielle',
+          authorAvatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=AdminOfficialBadge',
+          createdAt: "À l'instant",
+          activeCount: 2,
+          isAdminTopic: true,
+        };
+        localStorage.setItem('parlons_en_chat_topics_v2', JSON.stringify([newTopic, ...topicsList]));
+      }
+    } catch (e) {}
+  }
+
+  return { topicId: cleanId, topicTitle };
 }
 
 

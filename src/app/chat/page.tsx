@@ -636,6 +636,11 @@ export default function ChatPage() {
                       <div className="space-y-1 group flex-1">
                         <div className={`flex items-center gap-2 text-[11px] font-black ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'}`}>
                           <span>{msg.senderName}</span>
+                          {(msg.senderId === 'admin-official' || msg.senderName.includes('Admin') || msg.senderName.includes('Modérateur')) && (
+                            <span className="px-2 py-0.5 bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-[10px] rounded-full shadow-xs border border-yellow-300 flex items-center gap-1 shrink-0">
+                              🛡️ Admin Officiel
+                            </span>
+                          )}
                           <span className="text-[10px] font-bold opacity-60">• {msg.createdAt}</span>
                           
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition ml-1">
