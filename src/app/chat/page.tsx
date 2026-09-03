@@ -31,42 +31,16 @@ import {
   ArrowDown,
 } from 'lucide-react';
 
-export interface UserChatTopic {
-  id: string;
-  title: string;
-  categorySlug: string;
-  categoryName: string;
-  authorPseudonym: string;
-  authorAvatar: string;
-  createdAt: string;
-  activeCount: number;
-  isAdminTopic?: boolean;
-}
-
-export interface ChatMessage {
-  id: string;
-  topicId: string;
-  senderId: string;
-  senderName: string;
-  senderAvatar: string;
-  content: string;
-  createdAt: string;
-  isSelf: boolean;
-}
-
-const INITIAL_TOPICS: UserChatTopic[] = [
-  {
-    id: 'topic-1',
-    title: '💬 Salon de Discussion Générale & Entraide',
-    categorySlug: 'general',
-    categoryName: 'Café & Discussion',
-    authorPseudonym: 'Communauté',
-    authorAvatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=General1',
-    createdAt: 'À l\'instant',
-    activeCount: 1,
-    isAdminTopic: true,
-  },
-];
+import {
+  UserChatTopic,
+  ChatMessage,
+  INITIAL_TOPICS,
+  subscribeToRealtimeChat,
+  broadcastChatMessage,
+  broadcastChatTopic,
+  fetchAllChatTopics,
+  fetchAllChatMessages,
+} from '@/lib/supabase/chat';
 
 const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
   'topic-1': [],
@@ -92,71 +66,67 @@ export default function ChatPage() {
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
 
   useEffect(() => {
+    let unsubscribeFunc: (() => void) | null = null;
+
     async function loadData() {
       const currentSession = await getCurrentUserSession();
       setSession(currentSession);
       
-      if (typeof window !== 'undefined') {
-        // Load saved chat topics
-        const savedTopics = localStorage.getItem('parlons_en_chat_topics_v2');
-        let currentTopicsList = INITIAL_TOPICS;
-        if (savedTopics) {
-          try {
-            const parsed = JSON.parse(savedTopics);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              currentTopicsList = parsed;
-              setTopics(parsed);
-              setActiveTopic(parsed[0]);
-            }
-          } catch (e) {
-            console.error("Failed to parse saved chat topics", e);
-          }
-        }
+      const userId = currentSession?.user?.id || 'guest';
+      const pseudo = currentSession?.anonymousIdentity?.anonymous_name || 'Utilisateur #4821';
 
-        // Load saved chat messages
-        const savedMsgs = localStorage.getItem('parlons_en_chat_messages_v2');
-        if (savedMsgs) {
-          try {
-            const parsed = JSON.parse(savedMsgs);
-            if (parsed && typeof parsed === 'object') {
-              setMessages(parsed);
-            }
-          } catch (e) {
-            console.error("Failed to parse saved chat messages", e);
-          }
-        }
+      // Load initial topics and messages from DB + LocalStorage
+      const loadedTopics = await fetchAllChatTopics();
+      if (loadedTopics.length > 0) {
+        setTopics(loadedTopics);
+        setActiveTopic(loadedTopics[0]);
       }
+
+      const loadedMsgs = await fetchAllChatMessages();
+      setMessages(loadedMsgs);
       setIsLoaded(true);
+
+      // Subscribe to Supabase Realtime multi-user broadcast channel
+      unsubscribeFunc = subscribeToRealtimeChat(
+        userId,
+        pseudo,
+        (incomingMsg) => {
+          setMessages((prev) => {
+            const list = prev[incomingMsg.topicId] || [];
+            const exists = list.some((m) => m.id === incomingMsg.id);
+            if (exists) return prev;
+
+            const updatedList = [...list, incomingMsg];
+            const updatedMap = {
+              ...prev,
+              [incomingMsg.topicId]: updatedList,
+            };
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('parlons_en_chat_messages_v2', JSON.stringify(updatedMap));
+            }
+            return updatedMap;
+          });
+        },
+        (incomingTopic) => {
+          setTopics((prev) => {
+            const exists = prev.some((t) => t.id === incomingTopic.id);
+            if (exists) return prev;
+
+            const updatedTopics = [incomingTopic, ...prev];
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('parlons_en_chat_topics_v2', JSON.stringify(updatedTopics));
+            }
+            return updatedTopics;
+          });
+        }
+      );
     }
 
     loadData();
 
-    // Auto-sync polling every 2 seconds to catch newly posted messages/topics (e.g. from admin or multi-tabs)
-    const syncInterval = setInterval(() => {
-      if (typeof window !== 'undefined') {
-        const savedMsgs = localStorage.getItem('parlons_en_chat_messages_v2');
-        if (savedMsgs) {
-          try {
-            const parsed = JSON.parse(savedMsgs);
-            if (parsed && typeof parsed === 'object') {
-              setMessages(parsed);
-            }
-          } catch (e) {}
-        }
-
-        const savedTopics = localStorage.getItem('parlons_en_chat_topics_v2');
-        if (savedTopics) {
-          try {
-            const parsed = JSON.parse(savedTopics);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              setTopics(parsed);
-            }
-          } catch (e) {}
-        }
-      }
-    }, 2000);
-
-    return () => clearInterval(syncInterval);
+    return () => {
+      if (unsubscribeFunc) unsubscribeFunc();
+    };
   }, []);
 
   // Save messages only after initial load completes
@@ -258,8 +228,14 @@ export default function ChatPage() {
       return updatedMap;
     });
 
+    // Broadcast message via Supabase Realtime to all online users across browsers
+    broadcastChatMessage(userMsg);
+
     setInputValue('');
+    isScrolledUpRef.current = false;
+    setShowScrollBottomBtn(false);
     setTimeout(() => {
+      scrollToBottom(true);
       inputRef.current?.focus();
     }, 50);
   };
@@ -311,6 +287,10 @@ export default function ChatPage() {
       }
       return updatedMap;
     });
+
+    // Broadcast new topic and starter message to all online users via Supabase Realtime
+    broadcastChatTopic(newTopic);
+    broadcastChatMessage(starterMsg);
 
     setActiveTopic(newTopic);
     setMobileTab('chat');
