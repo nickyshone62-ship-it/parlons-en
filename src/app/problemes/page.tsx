@@ -83,6 +83,34 @@ export default function ProblemesPage() {
           </Button>
         </div>
 
+        {/* Status Filter Tabs */}
+        {!isLoading && !errorMessage && posts.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <span className="text-xs font-black uppercase text-slate-500 shrink-0 ml-1">Statut :</span>
+            {[
+              { key: 'all', label: `Tous (${posts.length})` },
+              { key: 'open', label: `Ouverts (${openCount})` },
+              { key: 'in_progress', label: `En cours (${testingCount})` },
+              { key: 'resolved', label: `Résolus (${resolvedCount})` },
+            ].map((tab) => {
+              const isActive = activeStatusFilter === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveStatusFilter(tab.key as any)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-black transition cursor-pointer shrink-0 ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Posts Content List */}
         {isLoading ? (
           <div className="py-12">
@@ -101,12 +129,12 @@ export default function ProblemesPage() {
               Réessayer
             </Button>
           </div>
-        ) : posts.length === 0 ? (
+        ) : filteredPosts.length === 0 ? (
           <div className="py-10">
             <EmptyState
-              title="Il n'y a pas encore de problème publié."
-              description="Soyez le premier membre de la communauté à exprimer une situation ou un problème !"
-              actionLabel="Publier le premier problème"
+              title="Aucune publication trouvée avec ce filtre."
+              description="Essayez de modifier votre filtre ou de publier un nouveau problème !"
+              actionLabel="Publier un problème"
               onAction={() => setIsNewPostModalOpen(true)}
             />
           </div>
@@ -114,7 +142,7 @@ export default function ProblemesPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
               <span className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                {posts.length} {posts.length === 1 ? 'problème répertorié' : 'problèmes répertoriés'}
+                {filteredPosts.length} {filteredPosts.length === 1 ? 'publication affichée' : 'publications affichées'}
               </span>
               <button
                 onClick={fetchPosts}
@@ -125,7 +153,7 @@ export default function ProblemesPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              {posts.map((post) => (
+              {filteredPosts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
             </div>

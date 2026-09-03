@@ -62,16 +62,6 @@ export const CommentCard: React.FC<CommentCardProps> = ({
     e.preventDefault();
     e.stopPropagation();
 
-    // Visitor requirement check
-    if (!isAuthenticated) {
-      if (onRequireAuth) {
-        onRequireAuth();
-      } else {
-        router.push('/connexion');
-      }
-      return;
-    }
-
     const nextState = !hasVoted;
     setHasVoted(nextState);
 
