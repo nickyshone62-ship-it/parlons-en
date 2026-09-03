@@ -250,20 +250,20 @@ export default function ChatPage() {
   };
 
   const handleDeleteMessage = async (msgId: string) => {
-    if (!selectedTopic) return;
-    await deleteChatMessage(msgId, selectedTopic.id);
-    setChatMessages((prev) => ({
+    if (!activeTopic) return;
+    await deleteChatMessage(msgId, activeTopic.id);
+    setMessages((prev) => ({
       ...prev,
-      [selectedTopic.id]: (prev[selectedTopic.id] || []).filter((m) => m.id !== msgId),
+      [activeTopic.id]: (prev[activeTopic.id] || []).filter((m) => m.id !== msgId),
     }));
   };
 
   const handleClearCurrentTopicMessages = async () => {
-    if (!selectedTopic) return;
+    if (!activeTopic) return;
     await deleteAllChatMessages();
-    setChatMessages((prev) => ({
+    setMessages((prev) => ({
       ...prev,
-      [selectedTopic.id]: [],
+      [activeTopic.id]: [],
     }));
   };
 
