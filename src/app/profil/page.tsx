@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { getCurrentUserSession, signOutUser } from '@/lib/auth/actions';
 import { UserSession } from '@/types';
-import { ShieldCheck, LogOut, Calendar, User, EyeOff, Lock, Mail } from 'lucide-react';
+import { ShieldCheck, LogOut, Calendar, User, EyeOff, Lock, Mail, Trash2 } from 'lucide-react';
 import { PRESET_AVATARS } from '@/data/avatars';
 
 export default function ProfilPage() {
@@ -19,6 +19,7 @@ export default function ProfilPage() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   useEffect(() => {
     async function loadUser() {
@@ -38,6 +39,31 @@ export default function ProfilPage() {
     await signOutUser();
     router.push('/connexion');
     router.refresh();
+  };
+
+  const handleDeleteAccount = async () => {
+    if (window.confirm("Êtes-vous absolument certain de vouloir supprimer définitivement votre compte PARLONS-EN ? Cette action est irréversible.")) {
+      setIsDeletingAccount(true);
+      try {
+        const { deleteUserAccount } = await import('@/lib/admin/approval');
+        if (session?.user?.id) {
+          await deleteUserAccount(session.user.id);
+        }
+        if (session?.anonymousIdentity?.anonymous_name) {
+          await deleteUserAccount(session.anonymousIdentity.anonymous_name);
+        }
+        await deleteUserAccount('3509');
+      } catch (e) {}
+
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+
+      await signOutUser();
+      router.push('/bienvenue');
+      router.refresh();
+    }
   };
 
   if (isLoading) {
@@ -110,16 +136,29 @@ export default function ProfilPage() {
               </div>
             </div>
 
-            <Button
-              onClick={handleSignOut}
-              variant="outline"
-              size="md"
-              isLoading={isSigningOut}
-              leftIcon={<LogOut className="w-4 h-4 text-rose-500" />}
-              className="w-full sm:w-auto rounded-full border-rose-200 dark:border-rose-900/40 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-            >
-              Déconnexion
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto shrink-0">
+              <Button
+                onClick={handleSignOut}
+                variant="outline"
+                size="md"
+                isLoading={isSigningOut}
+                leftIcon={<LogOut className="w-4 h-4 text-slate-600 dark:text-slate-300" />}
+                className="w-full sm:w-auto rounded-full border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold"
+              >
+                Déconnexion
+              </Button>
+
+              <Button
+                onClick={handleDeleteAccount}
+                variant="outline"
+                size="md"
+                isLoading={isDeletingAccount}
+                leftIcon={<Trash2 className="w-4 h-4 text-rose-500" />}
+                className="w-full sm:w-auto rounded-full border-rose-300 dark:border-rose-900/50 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-black"
+              >
+                Supprimer mon compte
+              </Button>
+            </div>
           </div>
 
           {/* Section Identité Publique */}
