@@ -47,23 +47,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
     }
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="p-6 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 text-center space-y-3">
-        <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
-          Vous devez être connecté pour proposer une piste de solution.
-        </p>
-        <Button
-          onClick={() => router.push('/connexion')}
-          variant="outline"
-          size="sm"
-          leftIcon={<LogIn className="w-4 h-4" />}
-        >
-          Se connecter pour répondre
-        </Button>
-      </div>
-    );
-  }
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 bg-white dark:bg-slate-900/80 p-4 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">

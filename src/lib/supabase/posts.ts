@@ -451,11 +451,30 @@ export async function createRealComment(
     } catch (e) {}
   }
 
+  let anonymousName = 'Utilisateur Anonyme';
+  if (user) {
+    try {
+      await ensureUserProfileAndIdentity(supabase, user.id);
+      const { data: ident } = await supabase
+        .from('anonymous_identities')
+        .select('anonymous_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (ident?.anonymous_name) anonymousName = ident.anonymous_name;
+    } catch (e) {}
+  } else if (typeof window !== 'undefined') {
+    let savedGuest = localStorage.getItem('parlons_en_guest_pseudo');
+    if (!savedGuest) {
+      savedGuest = `Utilisateur #${1000 + Math.floor(Math.random() * 8999)}`;
+      localStorage.setItem('parlons_en_guest_pseudo', savedGuest);
+    }
+    anonymousName = savedGuest;
+  }
+
   let newCommentId = `comment-${Date.now()}`;
 
   if (user) {
     try {
-      await ensureUserProfileAndIdentity(supabase, user.id);
       const { data, error } = await supabase
         .from('comments')
         .insert([
@@ -476,92 +495,147 @@ export async function createRealComment(
     } catch (e) {}
   }
 
+  // Always save comment to local storage as fallback
+  if (typeof window !== 'undefined') {
+    const newCommentObj: Answer & { hasVoted: boolean } = {
+      id: newCommentId,
+      post_id: postId,
+      content: content.trim(),
+      author_pseudonym: anonymousName,
+      created_at: "À l'instant",
+      upvotes_count: 0,
+      is_accepted: false,
+      is_demo: false,
+      hasVoted: false,
+      solution_status: 'none',
+      author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(anonymousName)}`,
+    };
+
+    try {
+      const existing = localStorage.getItem('parlons_en_local_comments_v1');
+      const map: Record<string, any[]> = existing ? JSON.parse(existing) : {};
+      const list = map[postId] || [];
+      const filtered = list.filter((c: any) => c.id !== newCommentId);
+      map[postId] = [...filtered, newCommentObj];
+      localStorage.setItem('parlons_en_local_comments_v1', JSON.stringify(map));
+    } catch (e) {
+      console.error("Local comment save notice:", e);
+    }
+  }
+
   return { success: true, commentId: newCommentId };
 }
 
 /**
- * Fetches comments for a post with parallel queries (post status, comments, author identities, votes)
+ * Fetches comments for a post combining Supabase & local fallback comments
  */
 export async function getRealComments(postId: string): Promise<(Answer & { hasVoted: boolean })[]> {
   const supabase = createBrowserClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  let dbComments: (Answer & { hasVoted: boolean })[] = [];
 
-  // Parallel fetching of post status and comments list
-  const [{ data: postData }, { data: comments, error }] = await Promise.all([
-    supabase.from('posts').select('status').eq('id', postId).maybeSingle(),
-    supabase.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true }),
-  ]);
+  try {
+    let user: any = null;
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      user = userData?.user || null;
+    } catch (e) {}
 
-  if (error || !comments || comments.length === 0) return [];
+    const [{ data: postData }, { data: comments, error }] = await Promise.all([
+      supabase.from('posts').select('status').eq('id', postId).maybeSingle(),
+      supabase.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true }),
+    ]);
 
-  let testingCommentId: string | null = null;
-  let resolvedCommentId: string | null = null;
+    if (!error && comments && comments.length > 0) {
+      let testingCommentId: string | null = null;
+      let resolvedCommentId: string | null = null;
 
-  const savedLocal = getPostSolutionStatus(postId);
-  if (savedLocal?.status === 'testing' && savedLocal.commentId) {
-    testingCommentId = savedLocal.commentId;
-  } else if (savedLocal?.status === 'resolved' && savedLocal.commentId) {
-    resolvedCommentId = savedLocal.commentId;
-  }
+      const savedLocal = getPostSolutionStatus(postId);
+      if (savedLocal?.status === 'testing' && savedLocal.commentId) {
+        testingCommentId = savedLocal.commentId;
+      } else if (savedLocal?.status === 'resolved' && savedLocal.commentId) {
+        resolvedCommentId = savedLocal.commentId;
+      }
 
-  if (postData?.status?.startsWith('testing:')) {
-    testingCommentId = postData.status.split('testing:')[1];
-  } else if (postData?.status?.startsWith('resolved:')) {
-    resolvedCommentId = postData.status.split('resolved:')[1];
-  }
+      if (postData?.status?.startsWith('testing:')) {
+        testingCommentId = postData.status.split('testing:')[1];
+      } else if (postData?.status?.startsWith('resolved:')) {
+        resolvedCommentId = postData.status.split('resolved:')[1];
+      }
 
-  const authorIds = Array.from(new Set(comments.map((c) => c.author_id)));
-  const commentIds = comments.map((c) => c.id);
+      const authorIds = Array.from(new Set(comments.map((c) => c.author_id)));
+      const commentIds = comments.map((c) => c.id);
 
-  // Parallel fetching of identities and votes
-  const [{ data: identities }, { data: votes }] = await Promise.all([
-    supabase.from('anonymous_identities').select('user_id, anonymous_name').in('user_id', authorIds),
-    supabase.from('votes').select('comment_id, user_id, vote_type').in('comment_id', commentIds),
-  ]);
+      const [{ data: identities }, { data: votes }] = await Promise.all([
+        supabase.from('anonymous_identities').select('user_id, anonymous_name').in('user_id', authorIds),
+        supabase.from('votes').select('comment_id, user_id, vote_type').in('comment_id', commentIds),
+      ]);
 
-  const identMap = new Map((identities || []).map((i) => [i.user_id, i.anonymous_name]));
-  const likesCountMap = new Map<string, number>();
-  const helpedCountMap = new Map<string, number>();
-  const userVotedSet = new Set<string>();
-  const userHelpedSet = new Set<string>();
+      const identMap = new Map((identities || []).map((i) => [i.user_id, i.anonymous_name]));
+      const likesCountMap = new Map<string, number>();
+      const helpedCountMap = new Map<string, number>();
+      const userVotedSet = new Set<string>();
+      const userHelpedSet = new Set<string>();
 
-  (votes || []).forEach((v) => {
-    if (!v.vote_type || v.vote_type === 'like' || v.vote_type === 'useful') {
-      likesCountMap.set(v.comment_id, (likesCountMap.get(v.comment_id) || 0) + 1);
-      if (user && v.user_id === user.id) userVotedSet.add(v.comment_id);
-    } else if (v.vote_type === 'helped_me') {
-      helpedCountMap.set(v.comment_id, (helpedCountMap.get(v.comment_id) || 0) + 1);
-      if (user && v.user_id === user.id) userHelpedSet.add(v.comment_id);
-    } else if (v.vote_type === 'author_solution') {
-      resolvedCommentId = v.comment_id;
+      (votes || []).forEach((v) => {
+        if (!v.vote_type || v.vote_type === 'like' || v.vote_type === 'useful') {
+          likesCountMap.set(v.comment_id, (likesCountMap.get(v.comment_id) || 0) + 1);
+          if (user && v.user_id === user.id) userVotedSet.add(v.comment_id);
+        } else if (v.vote_type === 'helped_me') {
+          helpedCountMap.set(v.comment_id, (helpedCountMap.get(v.comment_id) || 0) + 1);
+          if (user && v.user_id === user.id) userHelpedSet.add(v.comment_id);
+        } else if (v.vote_type === 'author_solution') {
+          resolvedCommentId = v.comment_id;
+        }
+      });
+
+      dbComments = comments.map((c) => {
+        let solStatus: 'none' | 'testing' | 'confirmed' = 'none';
+        if (resolvedCommentId === c.id) solStatus = 'confirmed';
+        else if (testingCommentId === c.id) solStatus = 'testing';
+
+        const pseudonym = identMap.get(c.author_id) || 'Utilisateur Anonyme';
+
+        return {
+          id: c.id,
+          post_id: c.post_id,
+          content: c.content,
+          created_at: formatRelativeTime(c.created_at),
+          upvotes_count: likesCountMap.get(c.id) || 0,
+          is_accepted: solStatus === 'confirmed',
+          is_demo: false,
+          author_pseudonym: pseudonym,
+          author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(pseudonym)}`,
+          hasVoted: userVotedSet.has(c.id),
+          solution_status: solStatus,
+          helped_users_count: helpedCountMap.get(c.id) || 0,
+          has_helped_user: userHelpedSet.has(c.id),
+        };
+      });
     }
-  });
+  } catch (e) {
+    console.error("Error fetching Supabase comments", e);
+  }
 
-  const result: (Answer & { hasVoted: boolean })[] = comments.map((c) => {
-    let solStatus: 'none' | 'testing' | 'confirmed' = 'none';
-    if (resolvedCommentId === c.id) solStatus = 'confirmed';
-    else if (testingCommentId === c.id) solStatus = 'testing';
+  // Fetch local comments fallback
+  let localComments: (Answer & { hasVoted: boolean })[] = [];
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('parlons_en_local_comments_v1');
+      if (saved) {
+        const map = JSON.parse(saved);
+        if (map && map[postId] && Array.isArray(map[postId])) {
+          localComments = map[postId];
+        }
+      }
+    } catch (e) {}
+  }
 
-    const pseudonym = identMap.get(c.author_id) || 'Utilisateur Anonyme';
+  const dbCommentIds = new Set(dbComments.map((c) => c.id));
+  const uniqueLocal = localComments.filter((c) => !dbCommentIds.has(c.id));
 
-    return {
-      id: c.id,
-      post_id: c.post_id,
-      content: c.content,
-      created_at: formatRelativeTime(c.created_at),
-      upvotes_count: likesCountMap.get(c.id) || 0,
-      is_accepted: solStatus === 'confirmed',
-      is_demo: false,
-      author_pseudonym: pseudonym,
-      author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(pseudonym)}`,
-      hasVoted: userVotedSet.has(c.id),
-      solution_status: solStatus,
-      helped_users_count: helpedCountMap.get(c.id) || 0,
-      has_helped_user: userHelpedSet.has(c.id),
-    };
-  });
+  const allComments = [...dbComments, ...uniqueLocal];
 
-  return result.sort((a, b) => {
+  return allComments.sort((a, b) => {
     if (a.solution_status === 'confirmed' && b.solution_status !== 'confirmed') return -1;
     if (b.solution_status === 'confirmed' && a.solution_status !== 'confirmed') return 1;
     if (a.solution_status === 'testing' && b.solution_status !== 'testing') return -1;
