@@ -74,6 +74,7 @@ const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
 export default function ChatPage() {
   const router = useRouter();
   const [session, setSession] = useState<UserSession | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [topics, setTopics] = useState<UserChatTopic[]>(INITIAL_TOPICS);
   const [activeTopic, setActiveTopic] = useState<UserChatTopic>(INITIAL_TOPICS[0]);
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES);
@@ -85,29 +86,86 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    async function loadUser() {
+    async function loadData() {
       const currentSession = await getCurrentUserSession();
       setSession(currentSession);
       
       if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem('parlons_en_chat_messages_v2');
-        if (saved) {
+        // Load saved chat topics
+        const savedTopics = localStorage.getItem('parlons_en_chat_topics_v2');
+        let currentTopicsList = INITIAL_TOPICS;
+        if (savedTopics) {
           try {
-            setMessages(JSON.parse(saved));
+            const parsed = JSON.parse(savedTopics);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              currentTopicsList = parsed;
+              setTopics(parsed);
+              setActiveTopic(parsed[0]);
+            }
+          } catch (e) {
+            console.error("Failed to parse saved chat topics", e);
+          }
+        }
+
+        // Load saved chat messages
+        const savedMsgs = localStorage.getItem('parlons_en_chat_messages_v2');
+        if (savedMsgs) {
+          try {
+            const parsed = JSON.parse(savedMsgs);
+            if (parsed && typeof parsed === 'object') {
+              setMessages(parsed);
+            }
           } catch (e) {
             console.error("Failed to parse saved chat messages", e);
           }
         }
       }
+      setIsLoaded(true);
     }
-    loadUser();
+
+    loadData();
+
+    // Auto-sync polling every 2 seconds to catch newly posted messages/topics (e.g. from admin or multi-tabs)
+    const syncInterval = setInterval(() => {
+      if (typeof window !== 'undefined') {
+        const savedMsgs = localStorage.getItem('parlons_en_chat_messages_v2');
+        if (savedMsgs) {
+          try {
+            const parsed = JSON.parse(savedMsgs);
+            if (parsed && typeof parsed === 'object') {
+              setMessages(parsed);
+            }
+          } catch (e) {}
+        }
+
+        const savedTopics = localStorage.getItem('parlons_en_chat_topics_v2');
+        if (savedTopics) {
+          try {
+            const parsed = JSON.parse(savedTopics);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setTopics(parsed);
+            }
+          } catch (e) {}
+        }
+      }
+    }, 2000);
+
+    return () => clearInterval(syncInterval);
   }, []);
 
+  // Save messages only after initial load completes
   useEffect(() => {
-    if (typeof window !== 'undefined' && messages) {
+    if (isLoaded && typeof window !== 'undefined') {
       localStorage.setItem('parlons_en_chat_messages_v2', JSON.stringify(messages));
     }
-  }, [messages]);
+  }, [messages, isLoaded]);
+
+  // Save topics only after initial load completes
+  useEffect(() => {
+    if (isLoaded && typeof window !== 'undefined') {
+      localStorage.setItem('parlons_en_chat_topics_v2', JSON.stringify(topics));
+    }
+  }, [topics, isLoaded]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -132,7 +190,7 @@ export default function ChatPage() {
     if (!textToSend) return;
 
     const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       topicId: activeTopic.id,
       senderId: session?.user?.id || 'guest',
       senderName: currentPseudonym,
@@ -142,10 +200,17 @@ export default function ChatPage() {
       isSelf: true,
     };
 
-    setMessages((prev) => ({
-      ...prev,
-      [activeTopic.id]: [...(prev[activeTopic.id] || []), userMsg],
-    }));
+    setMessages((prev) => {
+      const updatedList = [...(prev[activeTopic.id] || []), userMsg];
+      const updatedMap = {
+        ...prev,
+        [activeTopic.id]: updatedList,
+      };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('parlons_en_chat_messages_v2', JSON.stringify(updatedMap));
+      }
+      return updatedMap;
+    });
 
     setInputValue('');
     setTimeout(() => {
@@ -182,11 +247,24 @@ export default function ChatPage() {
       isSelf: true,
     };
 
-    setTopics((prev) => [newTopic, ...prev]);
-    setMessages((prev) => ({
-      ...prev,
-      [newTopicId]: [starterMsg],
-    }));
+    setTopics((prev) => {
+      const updatedTopics = [newTopic, ...prev];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('parlons_en_chat_topics_v2', JSON.stringify(updatedTopics));
+      }
+      return updatedTopics;
+    });
+
+    setMessages((prev) => {
+      const updatedMap = {
+        ...prev,
+        [newTopicId]: [starterMsg],
+      };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('parlons_en_chat_messages_v2', JSON.stringify(updatedMap));
+      }
+      return updatedMap;
+    });
 
     setActiveTopic(newTopic);
     setIsNewTopicModalOpen(false);
@@ -347,39 +425,47 @@ export default function ChatPage() {
 
             {/* Messages Feed */}
             <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-blue-50/40 via-white to-blue-50/20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 scrollbar-thin scrollbar-thumb-blue-400">
-              {currentMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex items-start gap-3 max-w-xl animate-fade-in ${
-                    msg.isSelf ? 'ml-auto flex-row-reverse' : ''
-                  }`}
-                >
-                  <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-0.5 shadow-md overflow-hidden shrink-0">
-                    <img
-                      src={msg.senderAvatar}
-                      alt="Avatar"
-                      className="w-full h-full object-cover rounded-[14px]"
-                    />
-                  </div>
+              {currentMessages.map((msg) => {
+                const isUserMsg = Boolean(
+                  msg.isSelf ||
+                  msg.senderName === currentPseudonym ||
+                  (session?.user?.id && msg.senderId === session.user.id)
+                );
 
-                  <div className="space-y-1">
-                    <div className={`flex items-center gap-2 text-[11px] font-black ${msg.isSelf ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'}`}>
-                      <span>{msg.senderName}</span>
-                      <span className="text-[10px] font-bold opacity-60">• {msg.createdAt}</span>
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex items-start gap-3 max-w-xl animate-fade-in ${
+                      isUserMsg ? 'ml-auto flex-row-reverse' : ''
+                    }`}
+                  >
+                    <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-0.5 shadow-md overflow-hidden shrink-0">
+                      <img
+                        src={msg.senderAvatar}
+                        alt="Avatar"
+                        className="w-full h-full object-cover rounded-[14px]"
+                      />
                     </div>
 
-                    <div
-                      className={`p-3.5 rounded-2xl text-xs sm:text-sm font-bold leading-relaxed shadow-sm ${
-                        msg.isSelf
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
-                          : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-tl-none'
-                      }`}
-                    >
-                      {msg.content}
+                    <div className="space-y-1">
+                      <div className={`flex items-center gap-2 text-[11px] font-black ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'}`}>
+                        <span>{msg.senderName}</span>
+                        <span className="text-[10px] font-bold opacity-60">• {msg.createdAt}</span>
+                      </div>
+
+                      <div
+                        className={`p-3.5 rounded-2xl text-xs sm:text-sm font-bold leading-relaxed shadow-sm ${
+                          isUserMsg
+                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
+                            : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-tl-none'
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               <div ref={messagesEndRef} />
             </div>
