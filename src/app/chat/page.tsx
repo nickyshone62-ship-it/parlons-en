@@ -367,7 +367,9 @@ export default function ChatPage() {
       <main className="flex-1 max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-4 sm:py-6 w-full flex flex-col space-y-6 pb-24 md:pb-12">
         
         {/* TOP HEADER & ACTION BANNER */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-[32px] p-6 sm:p-8 shadow-2xl shadow-blue-600/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 border border-blue-400/30">
+        <div className={`bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-[32px] p-5 sm:p-8 shadow-2xl shadow-blue-600/20 items-start sm:items-center justify-between gap-6 border border-blue-400/30 ${
+          mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'
+        }`}>
           <div className="space-y-2 max-w-xl">
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/20 text-white text-xs font-black backdrop-blur-md border border-white/30">
               <ShieldCheck className="w-4 h-4 text-amber-300 shrink-0" />
@@ -399,7 +401,9 @@ export default function ChatPage() {
         </div>
 
         {/* SEARCH & CATEGORY FILTER BAR */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className={`flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 ${
+          mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'
+        }`}>
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none flex-1">
             <span className="text-xs font-black uppercase text-slate-500 flex items-center gap-1 shrink-0 ml-1">
               <Filter className="w-3.5 h-3.5" /> Thèmes :
@@ -548,7 +552,7 @@ export default function ChatPage() {
           </div>
 
           {/* RIGHT COLUMN: LIVE CHAT STREAM */}
-          <div className={`flex-1 bg-white dark:bg-slate-900 rounded-[28px] sm:rounded-[32px] border-2 border-blue-300 dark:border-slate-800 shadow-2xl flex-col h-[calc(100vh-230px)] min-h-[440px] max-h-[660px] sm:h-[620px] overflow-hidden ${
+          <div className={`flex-1 bg-white dark:bg-slate-900 rounded-[28px] sm:rounded-[32px] border-2 border-blue-300 dark:border-slate-800 shadow-2xl flex-col h-[calc(100vh-170px)] min-h-[480px] sm:h-[620px] overflow-hidden ${
             mobileTab === 'topics' ? 'hidden lg:flex' : 'flex'
           }`}>
             
