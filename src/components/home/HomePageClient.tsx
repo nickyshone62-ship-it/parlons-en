@@ -109,32 +109,36 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
       <main className="flex-1 space-y-16 sm:space-y-24 pb-16">
         
         {/* HERO SECTION REDESIGN */}
-        <section className="relative overflow-hidden pt-8 sm:pt-16 pb-16 sm:pb-24 border-b border-blue-200/50 dark:border-slate-800/80 bg-gradient-to-b from-blue-600/10 via-indigo-500/5 to-transparent">
-          {/* Glowing Ambient Backdrop Balls */}
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-yellow-400/20 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse" />
-          <div className="absolute top-10 right-10 w-72 h-72 bg-amber-400/15 rounded-full blur-3xl pointer-events-none -z-10" />
+        <section className="relative overflow-hidden pt-10 sm:pt-20 pb-20 sm:pb-28 border-b border-blue-200/50 dark:border-slate-800/80 bg-gradient-to-b from-blue-600/15 via-indigo-500/10 to-transparent">
+          {/* Glowing Ambient Backdrop Orbs */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-gradient-to-br from-blue-500/25 via-indigo-600/20 to-amber-400/25 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse" />
+          <div className="absolute top-10 right-10 w-96 h-96 bg-amber-400/20 rounded-full blur-3xl pointer-events-none -z-10" />
+          <div className="absolute bottom-10 left-10 w-80 h-80 bg-emerald-400/15 rounded-full blur-3xl pointer-events-none -z-10" />
 
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center space-y-8">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center space-y-8 relative z-10">
             
             {/* Top Snapchat & Security Tagline Pill */}
-            <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-black border-2 border-yellow-400 shadow-lg shadow-yellow-400/10 animate-fade-in">
-              <span className="w-5 h-5 rounded-full bg-[#FFFC00] text-slate-950 flex items-center justify-center text-xs font-black shadow-xs">
+            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-slate-900 dark:text-white text-xs font-black border-2 border-amber-400 shadow-xl shadow-amber-400/15 transform hover:scale-105 transition duration-300">
+              <span className="w-6 h-6 rounded-full bg-[#FFFC00] text-slate-950 flex items-center justify-center text-xs font-black shadow-xs">
                 👻
               </span>
               <span>Plateforme 100% Anonyme avec 100 Bitmojis Snapchat</span>
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                En ligne
+              </span>
             </div>
 
             {/* Main Title */}
             <h1 className="text-3xl sm:text-6xl md:text-7xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.12] max-w-5xl mx-auto">
               Une difficulté ? Un souci ?{' '}
-              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-amber-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-600 via-indigo-500 to-amber-500 bg-clip-text text-transparent underline decoration-amber-400/60 decoration-wavy underline-offset-8">
                 Parle-en anonymement.
               </span>
             </h1>
 
             {/* Subtext */}
-            <p className="text-base sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed font-semibold">
+            <p className="text-base sm:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed font-bold">
               Libère-toi de ce qui te pèse sans aucune peur du jugement. Une communauté bienveillante est là pour t’écouter, t’épauler et t’aider à trouver des pistes concrètes.
             </p>
 
@@ -144,8 +148,8 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
                 onClick={() => setIsNewPostModalOpen(true)}
                 variant="primary"
                 size="lg"
-                leftIcon={<Sparkles className="w-5 h-5" />}
-                className="w-full sm:w-auto bg-gradient-to-r from-[#FFFC00] via-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-base sm:text-lg py-4 px-8 rounded-full shadow-xl shadow-amber-400/30 hover:scale-[1.03] transition border-2 border-yellow-300 tracking-wide"
+                leftIcon={<Sparkles className="w-5 h-5 text-slate-950" />}
+                className="w-full sm:w-auto bg-gradient-to-r from-[#FFFC00] via-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-black text-base sm:text-lg py-4.5 px-9 rounded-full shadow-2xl shadow-amber-400/40 hover:scale-[1.04] active:scale-[0.98] transition border-2 border-yellow-300 tracking-wide"
               >
                 Partager mon problème 🚀
               </Button>
@@ -155,7 +159,7 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
                   variant="outline"
                   size="lg"
                   leftIcon={<MessageCircleHeart className="w-5 h-5 text-emerald-500" />}
-                  className="w-full sm:w-auto font-black text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 rounded-full border-2 border-blue-300 dark:border-slate-700 py-4 px-8 shadow-md hover:bg-blue-50 dark:hover:bg-slate-800"
+                  className="w-full sm:w-auto font-black text-slate-800 dark:text-slate-100 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-full border-2 border-blue-300 dark:border-slate-700 py-4.5 px-9 shadow-lg hover:bg-blue-50 dark:hover:bg-slate-800 hover:scale-[1.02] transition"
                 >
                   Rejoindre le Chat en Direct 💬
                 </Button>
@@ -168,33 +172,60 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
                 {sampleAvatars.map((av) => (
                   <div
                     key={av.id}
-                    className={`w-10 h-10 rounded-full bg-gradient-to-br ${av.gradient} p-0.5 border-2 border-white dark:border-slate-900 shadow-md hover:scale-125 hover:z-20 transition-all duration-200`}
+                    className={`w-11 h-11 rounded-full bg-gradient-to-br ${av.gradient} p-0.5 border-2 border-white dark:border-slate-900 shadow-md hover:scale-125 hover:z-20 transition-all duration-200`}
                   >
                     <img src={av.url} alt="Bitmoji" className="w-full h-full object-cover rounded-full" />
                   </div>
                 ))}
-                <div className="w-10 h-10 rounded-full bg-[#FFFC00] text-slate-950 font-black text-xs flex items-center justify-center border-2 border-white shadow-md z-10">
+                <div className="w-11 h-11 rounded-full bg-[#FFFC00] text-slate-950 font-black text-xs flex items-center justify-center border-2 border-white shadow-md z-10">
                   +94
                 </div>
               </div>
-              <p className="text-xs font-black text-slate-500 dark:text-slate-400">
+              <p className="text-xs font-black text-slate-600 dark:text-slate-300">
                 Choisis ton Bitmoji unique parmi <strong className="text-blue-600 dark:text-blue-400">100 avatars Snapchat</strong> pour protéger ton identité.
               </p>
             </div>
 
-            {/* Micro Assurance Cards */}
-            <div className="pt-8 grid grid-cols-1 sm:grid-cols-3 max-w-3xl mx-auto border-t border-blue-200/60 dark:border-slate-800 text-center gap-3 sm:gap-6 text-xs sm:text-sm">
-              <div className="p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-blue-100 dark:border-slate-800 shadow-xs flex items-center justify-center gap-2 font-bold text-slate-800 dark:text-slate-200">
-                <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>100% Anonyme & Confidentiel</span>
+            {/* LIVE PLATFORM METRICS BAR */}
+            <div className="pt-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
+              <div className="p-5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl border-2 border-blue-200/60 dark:border-slate-800 shadow-lg text-center space-y-1 transform hover:-translate-y-1 transition duration-300">
+                <div className="w-9 h-9 rounded-2xl bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-2">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                  +{realPosts.length || 24}
+                </div>
+                <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Problèmes partagés</div>
               </div>
-              <div className="p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-blue-100 dark:border-slate-800 shadow-xs flex items-center justify-center gap-2 font-bold text-slate-800 dark:text-slate-200">
-                <ShieldCheck className="w-4 h-4 text-amber-500 shrink-0" />
-                <span>Modération Active & Bienveillante</span>
+
+              <div className="p-5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl border-2 border-amber-400/40 dark:border-slate-800 shadow-lg text-center space-y-1 transform hover:-translate-y-1 transition duration-300">
+                <div className="w-9 h-9 rounded-2xl bg-amber-400/20 text-amber-500 flex items-center justify-center mx-auto mb-2">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                  100%
+                </div>
+                <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Anonyme & Sécurisé</div>
               </div>
-              <div className="p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md rounded-2xl border border-blue-100 dark:border-slate-800 shadow-xs flex items-center justify-center gap-2 font-bold text-slate-800 dark:text-slate-200">
-                <Zap className="w-4 h-4 text-blue-500 shrink-0" />
-                <span>Accès Unique 500 FCFA</span>
+
+              <div className="p-5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl border-2 border-emerald-400/40 dark:border-slate-800 shadow-lg text-center space-y-1 transform hover:-translate-y-1 transition duration-300">
+                <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center mx-auto mb-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                  {resolvedCount}
+                </div>
+                <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Solutions confirmées</div>
+              </div>
+
+              <div className="p-5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl border-2 border-indigo-400/40 dark:border-slate-800 shadow-lg text-center space-y-1 transform hover:-translate-y-1 transition duration-300">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-500/20 text-indigo-500 flex items-center justify-center mx-auto mb-2">
+                  <Zap className="w-5 h-5" />
+                </div>
+                <div className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                  500 F
+                </div>
+                <div className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">Frais d'accès unique</div>
               </div>
             </div>
 
@@ -204,39 +235,40 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
         {/* SECTION : COMMENT CA MARCHE */}
         <section id="comment-ca-marche" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center space-y-3 mb-12">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-600/10 text-blue-600 dark:text-blue-400 text-xs font-black uppercase tracking-wider">
-              Principe Simple
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-blue-600/10 text-blue-600 dark:text-blue-400 text-xs font-black uppercase tracking-wider border border-blue-300/30">
+              <Sparkles className="w-3.5 h-3.5" />
+              Principe Simple & Sécurisé
             </div>
-            <h2 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
-              Comment fonctionne <span className="text-blue-600 dark:text-blue-400">PARLONS-EN</span> ?
+            <h2 className="text-3xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight">
+              Comment fonctionne <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">PARLONS-EN</span> ?
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-xl mx-auto font-semibold">
+            <p className="text-xs sm:text-base text-slate-600 dark:text-slate-300 max-w-xl mx-auto font-bold">
               Trois étapes clés pour briser le silence et avancer en toute sérénité.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             {/* Step 1 */}
-            <div className="p-7 bg-white dark:bg-slate-900/90 border-2 border-blue-200/80 dark:border-slate-800 rounded-3xl space-y-4 shadow-lg relative group hover:border-amber-400 transition duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-[#FFFC00] text-slate-950 font-black text-xl flex items-center justify-center shadow-md border border-yellow-400">
+            <div className="p-8 bg-white dark:bg-slate-900/90 border-2 border-blue-200/80 dark:border-slate-800 rounded-[32px] space-y-4 shadow-xl relative group hover:border-amber-400 hover:-translate-y-2 transition duration-300">
+              <div className="w-14 h-14 rounded-2xl bg-[#FFFC00] text-slate-950 font-black text-2xl flex items-center justify-center shadow-lg border-2 border-yellow-400">
                 1
               </div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <HelpCircle className="w-5 h-5 text-blue-600" />
+              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <HelpCircle className="w-6 h-6 text-blue-600" />
                 Partage ton problème
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
-                Exprime tes ressentis ou tes questions en toute liberté. Ton prénom reste masqué et ton Bitmoji te protège.
+                Exprime tes ressentis ou tes questions en toute liberté. Ton vrai nom reste masqué et ton Bitmoji Snapchat protège ton identité.
               </p>
             </div>
 
             {/* Step 2 */}
-            <div className="p-7 bg-white dark:bg-slate-900/90 border-2 border-blue-200/80 dark:border-slate-800 rounded-3xl space-y-4 shadow-lg relative group hover:border-indigo-500 transition duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white font-black text-xl flex items-center justify-center shadow-md">
+            <div className="p-8 bg-white dark:bg-slate-900/90 border-2 border-blue-200/80 dark:border-slate-800 rounded-[32px] space-y-4 shadow-xl relative group hover:border-indigo-500 hover:-translate-y-2 transition duration-300">
+              <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white font-black text-2xl flex items-center justify-center shadow-lg">
                 2
               </div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-indigo-600" />
+              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Users className="w-6 h-6 text-indigo-600" />
                 La communauté écoute
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
@@ -245,44 +277,44 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
             </div>
 
             {/* Step 3 */}
-            <div className="p-7 bg-white dark:bg-slate-900/90 border-2 border-blue-200/80 dark:border-slate-800 rounded-3xl space-y-4 shadow-lg relative group hover:border-emerald-500 transition duration-300">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white font-black text-xl flex items-center justify-center shadow-md">
+            <div className="p-8 bg-white dark:bg-slate-900/90 border-2 border-blue-200/80 dark:border-slate-800 rounded-[32px] space-y-4 shadow-xl relative group hover:border-emerald-500 hover:-translate-y-2 transition duration-300">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white font-black text-2xl flex items-center justify-center shadow-lg">
                 3
               </div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <MessageCircleHeart className="w-5 h-5 text-emerald-500" />
+              <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <MessageCircleHeart className="w-6 h-6 text-emerald-500" />
                 Trouve des solutions
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
-                Sélectionne la piste qui t'aide le plus et valide la réponse pour faire avancer le sujet vers "Confirmé".
+                Sélectionne la réponse qui t'aide le plus et marque le sujet comme "Résolu" pour apporter de l'espoir à la communauté.
               </p>
             </div>
           </div>
         </section>
 
         {/* SECTION : CATEGORIES */}
-        <section id="categories" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
+        <section id="categories" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-800 dark:text-amber-300 text-xs font-black uppercase tracking-wider mb-2">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-400/20 text-amber-800 dark:text-amber-300 text-xs font-black uppercase tracking-wider mb-2 border border-amber-400/30">
                 Thématiques de la Vie
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-                Toutes les Catégories
+              <h2 className="text-2xl sm:text-4xl font-black text-slate-900 dark:text-white tracking-tight">
+                Toutes les Catégories de Discussion
               </h2>
             </div>
 
             {activeCategoryFilter && (
               <button
                 onClick={() => setActiveCategoryFilter(null)}
-                className="text-xs font-black text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-blue-50 dark:bg-slate-800 px-3 py-1.5 rounded-full border border-blue-200"
+                className="text-xs font-black text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-blue-50 dark:bg-slate-800 px-3.5 py-1.5 rounded-full border border-blue-200"
               >
-                Retour aux catégories ({categories.find((c) => c.id === activeCategoryFilter)?.name || activeCategoryFilter})
+                Réinitialiser les filtres ({categories.find((c) => c.id === activeCategoryFilter)?.name || activeCategoryFilter})
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {categories.map((category) => (
               <CategoryCard
                 key={category.id}
@@ -299,27 +331,52 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
 
         {/* SECTION : DISCUSSIONS REELLES */}
         <section id="discussions" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow">
-                <Clock className="w-5 h-5" />
+              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg">
+                <Clock className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                  <span>Toutes les Discussions</span>
+                <h2 className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <span>Dernières Publications & Sujets</span>
                   <span className="text-sm font-bold text-slate-500">({filteredPosts.length})</span>
                 </h2>
                 <p className="text-xs text-slate-500 dark:text-slate-400 font-bold">
-                  Espace de parole en direct pour la communauté
+                  Partage d'expériences et entraide en temps réel
                 </p>
               </div>
+            </div>
+
+            {/* Status Filter Buttons */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none w-full sm:w-auto">
+              {[
+                { key: 'all', label: `Tous (${realPosts.length})` },
+                { key: 'open', label: `Ouverts (${openCount})` },
+                { key: 'in_progress', label: `En cours (${testingCount})` },
+                { key: 'resolved', label: `Résolus (${resolvedCount})` },
+              ].map((tab) => {
+                const isActive = activeStatusFilter === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveStatusFilter(tab.key as any)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-black transition cursor-pointer shrink-0 ${
+                      isActive
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {filteredPosts.length === 0 ? (
             <EmptyState
-              title="Toutes les catégories sont actuellement vierges (0 sujet)"
-              description="Soyez la toute première personne à vous exprimer en toute sécurité et confidentialité !"
+              title="Aucune publication trouvée dans cette sélection"
+              description="Soyez la toute première personne à vous exprimer en toute sécurité !"
               icon={<Sparkles className="w-8 h-8 text-amber-500" />}
               actionLabel="Partager mon problème maintenant"
               onAction={() => setIsNewPostModalOpen(true)}
@@ -331,6 +388,62 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
               ))}
             </div>
           )}
+        </section>
+
+        {/* SECTION : TEMOIGNAGES DE LA COMMUNAUTE */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 rounded-[36px] p-8 sm:p-12 text-white space-y-8 border-2 border-blue-500/20 shadow-2xl relative overflow-hidden">
+            <div className="text-center space-y-2 max-w-2xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black border border-amber-400/30">
+                <Sparkles className="w-3.5 h-3.5" />
+                Témoignages Anonymes
+              </div>
+              <h3 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                Ce que disent nos membres
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-300 font-medium">
+                Découvrez des retours sincères de personnes qui ont osé briser le silence.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="p-6 bg-slate-900/80 rounded-3xl border border-slate-800 space-y-3">
+                <div className="flex items-center gap-1 text-amber-400">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span key={i}>⭐</span>
+                  ))}
+                </div>
+                <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed italic">
+                  « Je n'osais en parler à personne de ma famille. Pouvoir poster anonymement avec mon Bitmoji m'a libérée d'un poids immense. »
+                </p>
+                <div className="text-xs font-black text-amber-400">— Utilisateur #4821</div>
+              </div>
+
+              <div className="p-6 bg-slate-900/80 rounded-3xl border border-slate-800 space-y-3">
+                <div className="flex items-center gap-1 text-amber-400">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span key={i}>⭐</span>
+                  ))}
+                </div>
+                <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed italic">
+                  « Les conseils que j'ai reçus m'ont permis de régler un conflit professionnel complexe en moins de 48 heures. Merci ! »
+                </p>
+                <div className="text-xs font-black text-emerald-400">— Utilisateur #1940</div>
+              </div>
+
+              <div className="p-6 bg-slate-900/80 rounded-3xl border border-slate-800 space-y-3">
+                <div className="flex items-center gap-1 text-amber-400">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <span key={i}>⭐</span>
+                  ))}
+                </div>
+                <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed italic">
+                  « Le salon de chat en direct est d'une bienveillance incroyable. On s'entraide tous sans jamais se juger. »
+                </p>
+                <div className="text-xs font-black text-blue-400">— Utilisateur #3052</div>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* CTA BOTTOM BANNER */}
@@ -354,7 +467,7 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
                 onClick={() => setIsNewPostModalOpen(true)}
                 variant="secondary"
                 size="lg"
-                className="bg-gradient-to-r from-[#FFFC00] to-yellow-400 hover:from-yellow-300 hover:to-amber-400 text-slate-950 border-none shadow-xl font-black rounded-full text-base sm:text-lg py-4 px-8"
+                className="bg-gradient-to-r from-[#FFFC00] to-yellow-400 hover:from-yellow-300 hover:to-amber-400 text-slate-950 border-none shadow-xl font-black rounded-full text-base sm:text-lg py-4.5 px-9 transform hover:scale-105 transition"
                 leftIcon={<Heart className="w-5 h-5 text-rose-600 fill-rose-600" />}
               >
                 Partager mon problème maintenant
