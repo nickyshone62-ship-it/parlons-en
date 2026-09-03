@@ -45,24 +45,24 @@ export function AvatarPicker({ selectedAvatar, onSelectAvatar }: AvatarPickerPro
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5 w-full max-w-full">
       {/* Snapchat Themed Header */}
-      <div className="flex items-center justify-between gap-2">
-        <label className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5 shrink-0">
-          <span className="w-5 h-5 rounded-full bg-[#FFFC00] text-slate-950 flex items-center justify-center font-black text-[10px] shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5 min-w-0">
+          <span className="w-5 h-5 rounded-full bg-[#FFFC00] text-slate-950 flex items-center justify-center font-black text-[10px] shadow-xs shrink-0">
             👻
           </span>
-          <span>Choisis ton Bitmoji Snapchat (100 Dispo)</span>
+          <span className="truncate">Bitmoji Snapchat (100 Dispo)</span>
         </label>
 
         <button
           type="button"
           onClick={handleGenerateRandom}
-          className="flex items-center gap-1 px-3 py-1 bg-[#FFFC00] hover:bg-yellow-300 text-slate-950 font-black rounded-full text-xs transition shrink-0 shadow-md border border-yellow-400"
+          className="flex items-center gap-1 px-2.5 py-1 bg-[#FFFC00] hover:bg-yellow-300 active:scale-95 text-slate-950 font-black rounded-full text-[11px] sm:text-xs transition shrink-0 shadow-md border border-yellow-400 cursor-pointer"
           title="Tirer un Bitmoji Snapchat au hasard"
         >
           <Dices className="w-3.5 h-3.5 stroke-[2.5]" />
-          <span>Bitmoji Aléatoire 🎲</span>
+          <span>Aléatoire 🎲</span>
         </button>
       </div>
 
