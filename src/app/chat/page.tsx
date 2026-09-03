@@ -634,16 +634,16 @@ export default function ChatPage() {
                       </div>
 
                       <div className="space-y-1 group flex-1">
-                        <div className={`flex items-center gap-2 text-[11px] font-black ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'}`}>
-                          <span>{msg.senderName}</span>
+                        <div className={`flex flex-wrap items-center gap-1.5 text-xs font-black ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-900 dark:text-slate-100'}`}>
+                          <span className="font-black tracking-tight">{msg.senderName}</span>
                           {(msg.senderId === 'admin-official' || msg.senderName.includes('Admin') || msg.senderName.includes('Modérateur')) && (
-                            <span className="px-2 py-0.5 bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black text-[10px] rounded-full shadow-xs border border-yellow-300 flex items-center gap-1 shrink-0">
+                            <span className="px-2.5 py-0.5 bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black text-[10px] rounded-full shadow-xs border border-yellow-300 flex items-center gap-1 shrink-0">
                               🛡️ Admin Officiel
                             </span>
                           )}
-                          <span className="text-[10px] font-bold opacity-60">• {msg.createdAt}</span>
+                          <span className="text-[10px] font-bold text-slate-400">• {msg.createdAt}</span>
                           
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition ml-1">
+                          <div className="flex items-center gap-1 transition ml-1 opacity-90 sm:opacity-0 group-hover:opacity-100">
                             {isUserMsg && (
                               <button
                                 type="button"
@@ -675,7 +675,7 @@ export default function ChatPage() {
                                 if (e.key === 'Enter') handleSaveEdit(msg.id);
                                 if (e.key === 'Escape') handleCancelEdit();
                               }}
-                              className="w-full bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-700 outline-none focus:border-amber-400"
+                              className="w-full bg-slate-800 text-white text-sm font-bold px-3 py-2 rounded-xl border border-slate-700 outline-none focus:border-amber-400"
                               autoFocus
                             />
                             <button
@@ -697,10 +697,12 @@ export default function ChatPage() {
                           </div>
                         ) : (
                           <div
-                            className={`p-3.5 rounded-2xl text-xs sm:text-sm font-bold leading-relaxed shadow-sm ${
+                            className={`p-3.5 sm:p-4 rounded-3xl text-sm sm:text-base font-semibold leading-relaxed shadow-sm ${
                               isUserMsg
-                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
-                                : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-tl-none'
+                                ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-tr-none shadow-md font-bold'
+                                : (msg.senderId === 'admin-official' || msg.senderName.includes('Admin') || msg.senderName.includes('Modérateur'))
+                                ? 'bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-amber-500/25 dark:from-slate-900 dark:to-slate-950 text-slate-900 dark:text-amber-200 border-2 border-amber-400 dark:border-amber-500/80 rounded-tl-none shadow-md font-bold'
+                                : 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50 border-2 border-slate-200/90 dark:border-slate-800 rounded-tl-none shadow-sm'
                             }`}
                           >
                             {msg.content}
@@ -791,7 +793,7 @@ export default function ChatPage() {
                       handleSendMessage();
                     }
                   }}
-                  className="flex-1 bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 border border-slate-200 dark:border-slate-800 rounded-full px-4 py-3 text-xs sm:text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
+                  className="flex-1 bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-500 border-2 border-slate-300 dark:border-slate-700 rounded-full px-4.5 py-3 text-base sm:text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition shadow-inner"
                 />
 
                 <Button
