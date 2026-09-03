@@ -29,6 +29,7 @@ import {
   Search,
   Filter,
   ArrowDown,
+  LogIn,
 } from 'lucide-react';
 
 import {
@@ -202,6 +203,11 @@ export default function ChatPage() {
 
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!session?.user) {
+      router.push('/connexion');
+      return;
+    }
+
     const textToSend = inputValue.trim();
     if (!textToSend) return;
 
@@ -323,7 +329,13 @@ export default function ChatPage() {
           </div>
 
           <Button
-            onClick={() => setIsNewTopicModalOpen(true)}
+            onClick={() => {
+              if (!session?.user) {
+                router.push('/connexion');
+              } else {
+                setIsNewTopicModalOpen(true);
+              }
+            }}
             variant="primary"
             size="lg"
             leftIcon={<MessageSquarePlus className="w-5 h-5" />}
@@ -610,33 +622,67 @@ export default function ChatPage() {
               ))}
             </div>
 
-            {/* Message Input Bar */}
-            <form onSubmit={handleSendMessage} className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0">
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder={`Tapez votre réponse... (Réponses illimitées)`}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                className="flex-1 bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 border border-slate-200 dark:border-slate-800 rounded-full px-4 py-3 text-xs sm:text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-              />
+            {/* Message Input Bar / Login Guard */}
+            {!session?.user ? (
+              <div className="p-4 sm:p-5 bg-slate-900 text-white border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+                <div className="flex items-center gap-3 text-center sm:text-left">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-400/20 text-amber-400 flex items-center justify-center shrink-0">
+                    <LogIn className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black text-white">Compte membre requis pour chater</h4>
+                    <p className="text-[11px] text-slate-400 font-medium">Vous devez disposer d'un compte membre validé pour envoyer des messages ou créer un salon.</p>
+                  </div>
+                </div>
 
-              <Button
-                type="submit"
-                variant="primary"
-                size="md"
-                leftIcon={<Send className="w-4 h-4" />}
-                className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black rounded-full shadow-lg border-none px-5 py-3 text-xs sm:text-sm shrink-0"
-              >
-                Envoyer 🚀
-              </Button>
-            </form>
+                <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+                  <Button
+                    onClick={() => router.push('/connexion')}
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<LogIn className="w-4 h-4" />}
+                    className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-full text-xs flex-1 sm:flex-initial"
+                  >
+                    Se connecter
+                  </Button>
+                  <Button
+                    onClick={() => router.push('/inscription')}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full border-slate-700 hover:bg-slate-800 text-white text-xs font-bold flex-1 sm:flex-initial"
+                  >
+                    Créer un compte
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSendMessage} className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2.5 shrink-0">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  placeholder={`Tapez votre réponse... (Réponses illimitées)`}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  className="flex-1 bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-white placeholder:text-slate-400 border border-slate-200 dark:border-slate-800 rounded-full px-4 py-3 text-xs sm:text-sm font-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
+                />
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  leftIcon={<Send className="w-4 h-4" />}
+                  className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black rounded-full shadow-lg border-none px-5 py-3 text-xs sm:text-sm shrink-0"
+                >
+                  Envoyer 🚀
+                </Button>
+              </form>
+            )}
 
           </div>
 
