@@ -12,7 +12,8 @@ import { CategoryCard } from '@/components/categories/CategoryCard';
 import { PostCard } from '@/components/posts/PostCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { NewPostModal } from '@/components/modals/NewPostModal';
-import { LoginModal } from '@/components/modals/LoginModal';
+import { NewReviewModal } from '@/components/modals/NewReviewModal';
+import { getRealUserReviews, UserReview, INITIAL_REVIEWS } from '@/lib/supabase/reviews';
 import { getCurrentUserSession } from '@/lib/auth/actions';
 import { getRealPosts } from '@/lib/supabase/posts';
 import { CHARACTER_AVATARS } from '@/data/avatars';
@@ -29,6 +30,7 @@ import {
   Lock,
   Zap,
   CheckCircle2,
+  Star,
 } from 'lucide-react';
 
 export interface HomePageClientProps {
@@ -41,12 +43,16 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
   initialRealPosts = [],
 }) => {
   const [realPosts, setRealPosts] = useState<Post[]>(initialRealPosts);
+  const [reviews, setReviews] = useState<UserReview[]>(INITIAL_REVIEWS);
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
+  const [isNewReviewModalOpen, setIsNewReviewModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
   const [activeStatusFilter, setActiveStatusFilter] = useState<'all' | 'resolved' | 'in_progress' | 'open'>('all');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [currentPseudonym, setCurrentPseudonym] = useState('Utilisateur Anonyme');
+  const [currentAvatar, setCurrentAvatar] = useState('https://api.dicebear.com/7.x/avataaars/svg?seed=Guest');
 
   const router = useRouter();
   const sampleAvatars = CHARACTER_AVATARS.slice(0, 6);
@@ -62,11 +68,27 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
     }
   };
 
+  const fetchLiveReviews = async () => {
+    try {
+      const fetchedReviews = await getRealUserReviews();
+      setReviews(fetchedReviews || INITIAL_REVIEWS);
+    } catch {
+      setReviews(INITIAL_REVIEWS);
+    }
+  };
+
   useEffect(() => {
     async function init() {
       const session = await getCurrentUserSession();
       const userIsLoggedIn = Boolean(session?.user);
       setIsAuthenticated(userIsLoggedIn);
+
+      if (session) {
+        const pseudo = session.anonymousIdentity?.anonymous_name || 'Utilisateur #4821';
+        const av = session.user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(pseudo)}`;
+        setCurrentPseudonym(pseudo);
+        setCurrentAvatar(av);
+      }
 
       if (typeof window !== 'undefined' && !userIsLoggedIn) {
         const hasSeenOnboarding = localStorage.getItem('parlons_en_has_seen_onboarding');
@@ -75,7 +97,7 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
           return;
         }
       }
-      await fetchLivePosts();
+      await Promise.all([fetchLivePosts(), fetchLiveReviews()]);
     }
     init();
   }, [router]);
@@ -390,58 +412,65 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
           )}
         </section>
 
-        {/* SECTION : TEMOIGNAGES DE LA COMMUNAUTE */}
+        {/* SECTION : TEMOIGNAGES ET AVIS REELS DE LA COMMUNAUTE */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 rounded-[36px] p-8 sm:p-12 text-white space-y-8 border-2 border-blue-500/20 shadow-2xl relative overflow-hidden">
-            <div className="text-center space-y-2 max-w-2xl mx-auto">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black border border-amber-400/30">
-                <Sparkles className="w-3.5 h-3.5" />
-                Témoignages Anonymes
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="space-y-2 text-center sm:text-left">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black border border-amber-400/30">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  Avis & Témoignages des Membres
+                </div>
+                <h3 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                  Ce que disent nos utilisateurs ({reviews.length})
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-xl">
+                  Découvrez les avis authentiques laissés par la communauté Parlons-En.
+                </p>
               </div>
-              <h3 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-                Ce que disent nos membres
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 font-medium">
-                Découvrez des retours sincères de personnes qui ont osé briser le silence.
-              </p>
+
+              <Button
+                onClick={() => setIsNewReviewModalOpen(true)}
+                variant="primary"
+                size="md"
+                leftIcon={<Star className="w-4 h-4 text-slate-950 fill-slate-950" />}
+                className="bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black rounded-full shadow-xl border-none px-6 py-3 shrink-0 text-xs sm:text-sm cursor-pointer"
+              >
+                ⭐ Donner mon avis sur la plateforme
+              </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 bg-slate-900/80 rounded-3xl border border-slate-800 space-y-3">
-                <div className="flex items-center gap-1 text-amber-400">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i}>⭐</span>
-                  ))}
-                </div>
-                <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed italic">
-                  « Je n'osais en parler à personne de ma famille. Pouvoir poster anonymement avec mon Bitmoji m'a libérée d'un poids immense. »
-                </p>
-                <div className="text-xs font-black text-amber-400">— Utilisateur #4821</div>
-              </div>
+              {reviews.map((rev) => (
+                <div key={rev.id} className="p-6 bg-slate-900/90 rounded-3xl border border-slate-800 space-y-4 hover:border-amber-400/50 transition duration-200 shadow-md">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-amber-400">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < rev.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-700'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-bold">{rev.createdAt}</span>
+                  </div>
 
-              <div className="p-6 bg-slate-900/80 rounded-3xl border border-slate-800 space-y-3">
-                <div className="flex items-center gap-1 text-amber-400">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i}>⭐</span>
-                  ))}
-                </div>
-                <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed italic">
-                  « Les conseils que j'ai reçus m'ont permis de régler un conflit professionnel complexe en moins de 48 heures. Merci ! »
-                </p>
-                <div className="text-xs font-black text-emerald-400">— Utilisateur #1940</div>
-              </div>
+                  <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed italic">
+                    « {rev.content} »
+                  </p>
 
-              <div className="p-6 bg-slate-900/80 rounded-3xl border border-slate-800 space-y-3">
-                <div className="flex items-center gap-1 text-amber-400">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <span key={i}>⭐</span>
-                  ))}
+                  <div className="flex items-center gap-3 pt-2 border-t border-slate-800/80">
+                    <div className="w-8 h-8 rounded-full border border-amber-400 overflow-hidden shrink-0">
+                      <img src={rev.authorAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="text-xs font-black text-amber-400 truncate">
+                      {rev.authorPseudonym}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-200 font-medium leading-relaxed italic">
-                  « Le salon de chat en direct est d'une bienveillance incroyable. On s'entraide tous sans jamais se juger. »
-                </p>
-                <div className="text-xs font-black text-blue-400">— Utilisateur #3052</div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
@@ -495,6 +524,17 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
         isAuthenticated={isAuthenticated}
       />
 
+      <NewReviewModal
+        isOpen={isNewReviewModalOpen}
+        onClose={() => setIsNewReviewModalOpen(false)}
+        onSuccess={() => {
+          setIsNewReviewModalOpen(false);
+          fetchLiveReviews();
+        }}
+        currentPseudonym={currentPseudonym}
+        currentAvatar={currentAvatar}
+      />
+
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
@@ -502,4 +542,3 @@ export const HomePageClient: React.FC<HomePageClientProps> = ({
     </div>
   );
 };
-
