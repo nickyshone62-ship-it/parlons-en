@@ -54,7 +54,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             disabled={disabled}
             className={cn(
-              'w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-full px-5 py-2.5 text-sm font-black text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-400 shadow-sm transition duration-200',
+              'w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-full px-5 py-2.5 text-base sm:text-sm font-black text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-400 shadow-sm transition duration-200',
               'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-600 dark:focus:border-blue-400',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               leftIcon && 'pl-11',
