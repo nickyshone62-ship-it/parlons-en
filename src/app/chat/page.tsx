@@ -596,7 +596,7 @@ export default function ChatPage() {
             <div
               ref={messagesContainerRef}
               onScroll={handleContainerScroll}
-              className="relative flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-blue-50/40 via-white to-blue-50/20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 scrollbar-thin scrollbar-thumb-blue-400"
+              className="relative flex-1 p-3.5 sm:p-6 overflow-y-auto space-y-3.5 bg-slate-100 dark:bg-slate-950 scrollbar-thin scrollbar-thumb-blue-400"
             >
               {currentMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3 my-auto">
@@ -621,11 +621,11 @@ export default function ChatPage() {
                   return (
                     <div
                       key={msg.id}
-                      className={`flex items-start gap-3 max-w-xl animate-fade-in ${
+                      className={`flex items-start gap-2.5 sm:gap-3 max-w-[88%] sm:max-w-xl animate-fade-in ${
                         isUserMsg ? 'ml-auto flex-row-reverse' : ''
                       }`}
                     >
-                      <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-0.5 shadow-md overflow-hidden shrink-0">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 p-0.5 shadow-md overflow-hidden shrink-0">
                         <img
                           src={msg.senderAvatar}
                           alt="Avatar"
@@ -633,15 +633,15 @@ export default function ChatPage() {
                         />
                       </div>
 
-                      <div className="space-y-1 group flex-1">
-                        <div className={`flex flex-wrap items-center gap-1.5 text-xs font-black ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-900 dark:text-slate-100'}`}>
+                      <div className="space-y-1 group flex-1 min-w-0">
+                        <div className={`flex flex-wrap items-center gap-1.5 text-xs font-black pb-0.5 ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-900 dark:text-slate-100'}`}>
                           <span className="font-black tracking-tight">{msg.senderName}</span>
                           {(msg.senderId === 'admin-official' || msg.senderName.includes('Admin') || msg.senderName.includes('Modérateur')) && (
-                            <span className="px-2.5 py-0.5 bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black text-[10px] rounded-full shadow-xs border border-yellow-300 flex items-center gap-1 shrink-0">
+                            <span className="px-2.5 py-0.5 bg-amber-400 text-slate-950 font-black text-[10px] rounded-full shadow-xs border border-yellow-300 flex items-center gap-1 shrink-0">
                               🛡️ Admin Officiel
                             </span>
                           )}
-                          <span className="text-[10px] font-bold text-slate-400">• {msg.createdAt}</span>
+                          <span className="text-[10px] font-bold text-slate-500 opacity-80">• {msg.createdAt}</span>
                           
                           <div className="flex items-center gap-1 transition ml-1 opacity-90 sm:opacity-0 group-hover:opacity-100">
                             {isUserMsg && (
@@ -697,12 +697,12 @@ export default function ChatPage() {
                           </div>
                         ) : (
                           <div
-                            className={`p-3.5 sm:p-4 rounded-3xl text-sm sm:text-base font-semibold leading-relaxed shadow-sm ${
+                            className={`p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl text-sm sm:text-base font-bold leading-relaxed shadow-sm ${
                               isUserMsg
-                                ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-tr-none shadow-md font-bold'
+                                ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white rounded-tr-none shadow-blue-600/20'
                                 : (msg.senderId === 'admin-official' || msg.senderName.includes('Admin') || msg.senderName.includes('Modérateur'))
-                                ? 'bg-gradient-to-br from-amber-500/20 via-yellow-500/10 to-amber-500/25 dark:from-slate-900 dark:to-slate-950 text-slate-900 dark:text-amber-200 border-2 border-amber-400 dark:border-amber-500/80 rounded-tl-none shadow-md font-bold'
-                                : 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-50 border-2 border-slate-200/90 dark:border-slate-800 rounded-tl-none shadow-sm'
+                                ? 'bg-amber-400/20 dark:bg-amber-950/80 text-slate-950 dark:text-amber-100 border-2 border-amber-400 dark:border-amber-500 rounded-tl-none shadow-lg'
+                                : 'bg-white dark:bg-slate-900 text-slate-950 dark:text-slate-50 border-2 border-slate-300 dark:border-slate-800 rounded-tl-none shadow-sm'
                             }`}
                           >
                             {msg.content}
