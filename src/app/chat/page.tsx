@@ -337,11 +337,11 @@ export default function ChatPage() {
               }
             }}
             variant="primary"
-            size="lg"
-            leftIcon={<MessageSquarePlus className="w-5 h-5" />}
-            className="w-full sm:w-auto bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black rounded-full shadow-xl shadow-amber-400/40 py-3.5 px-6 text-sm sm:text-base border-none shrink-0"
+            size="md"
+            leftIcon={<MessageSquarePlus className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />}
+            className="w-full sm:w-auto max-w-full bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-slate-950 font-black rounded-full shadow-lg shadow-amber-400/30 py-2.5 sm:py-3.5 px-4 sm:px-6 text-xs sm:text-sm md:text-base border-none shrink-0"
           >
-            Proposer un sujet de chat
+            <span>Proposer un sujet</span>
           </Button>
         </div>
 
