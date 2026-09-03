@@ -143,45 +143,13 @@ export const NewPostModal: React.FC<NewPostModalProps> = ({
       description="Exprimez-vous librement en toute confidentialité. Votre publication sera associée uniquement à votre pseudo anonyme."
       maxWidth="lg"
     >
-      {!isAuth ? (
-        <div className="py-6 text-center space-y-4">
-          <div className="w-14 h-14 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
-            <LogIn className="w-7 h-7" />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {errorMessage && (
+          <div className="p-3 bg-rose-500/10 border border-rose-300 rounded-2xl text-rose-600 dark:text-rose-300 text-xs font-bold flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
           </div>
-          <div className="space-y-1">
-            <h4 className="text-lg font-black text-slate-900 dark:text-slate-100">
-              Connexion requise
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mx-auto font-medium">
-              Vous devez être connecté pour publier un problème. Votre identité réelle restera toujours masquée.
-            </p>
-          </div>
-          <div className="flex justify-center gap-3 pt-2">
-            <Button variant="outline" size="sm" onClick={handleReset} className="rounded-full">
-              Annuler
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                handleReset();
-                router.push('/connexion');
-              }}
-              leftIcon={<LogIn className="w-4 h-4" />}
-              className="rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 font-black border-none"
-            >
-              Se connecter
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {errorMessage && (
-            <div className="p-3 bg-rose-500/10 border border-rose-300 rounded-2xl text-rose-600 dark:text-rose-300 text-xs font-bold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{errorMessage}</span>
-            </div>
-          )}
+        )}
 
           {/* ÉTAPE 1: SÉLECTION DE LA CATÉGORIE (TOTALEMENT SÉPARÉE ET DISTINCTE) */}
           <div className="space-y-4 p-5 bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 rounded-3xl border-2 border-blue-300/80 dark:border-slate-800 shadow-lg">
@@ -337,7 +305,6 @@ export const NewPostModal: React.FC<NewPostModalProps> = ({
             </Button>
           </div>
         </form>
-      )}
-    </Modal>
-  );
-};
+      </Modal>
+    );
+  };
