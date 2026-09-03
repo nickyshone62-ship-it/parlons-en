@@ -71,27 +71,6 @@ const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
   'topic-1': [],
 };
 
-const COMMUNITY_MEMBERS = [
-  { name: 'Utilisateur #3920', seed: 'Utilisateur3920' },
-  { name: 'Utilisateur #8812', seed: 'Utilisateur8812' },
-  { name: 'Utilisateur #5102', seed: 'Utilisateur5102' },
-  { name: 'Utilisateur #2209', seed: 'Utilisateur2209' },
-  { name: 'Utilisateur #7741', seed: 'Utilisateur7741' },
-  { name: 'Utilisateur #9102', seed: 'Utilisateur9102' },
-];
-
-function getRandomCommunityReply(userMessage: string): string {
-  const replies = [
-    "Je comprends totalement ce que tu traverses. N'hésite pas à procéder par petites étapes, tu n'es pas seul(e) 💙.",
-    "Merci pour ton partage ! C'est une excellente question, j'ai vécu une situation similaire récemment.",
-    "Tout à fait d'accord avec ce point de vue ! La clé c'est de bien communiquer et d'écouter ses ressentis.",
-    "C'est très courageux d'exprimer cela ici. Prends le temps qu'il te faut, la communauté est là pour soutenir.",
-    "J'ai testé une approche proche la semaine dernière et ça m'a beaucoup aidé(e) à prendre du recul ✨.",
-    "Absolument ! N'hésite pas si tu as d'autres réflexions à partager dans ce salon.",
-  ];
-  return replies[Math.floor(Math.random() * replies.length)];
-}
-
 export default function ChatPage() {
   const router = useRouter();
   const [session, setSession] = useState<UserSession | null>(null);
@@ -100,7 +79,6 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>(INITIAL_MESSAGES);
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [inputValue, setInputValue] = useState('');
-  const [typingUser, setTypingUser] = useState<{ name: string; avatar: string } | null>(null);
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
   const [isNewTopicModalOpen, setIsNewTopicModalOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -137,7 +115,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, activeTopic, typingUser]);
+  }, [messages, activeTopic]);
 
   const currentPseudonym = session?.anonymousIdentity?.anonymous_name || 'Utilisateur #4821';
   const currentAvatar = session?.user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentPseudonym)}`;
@@ -173,32 +151,6 @@ export default function ChatPage() {
     setTimeout(() => {
       inputRef.current?.focus();
     }, 50);
-
-    const responder = COMMUNITY_MEMBERS[Math.floor(Math.random() * COMMUNITY_MEMBERS.length)];
-    const responderAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${responder.seed}`;
-
-    setTimeout(() => {
-      setTypingUser({ name: responder.name, avatar: responderAvatar });
-    }, 600);
-
-    setTimeout(() => {
-      setTypingUser(null);
-      const communityReply: ChatMessage = {
-        id: `msg-reply-${Date.now()}`,
-        topicId: activeTopic.id,
-        senderId: responder.seed,
-        senderName: responder.name,
-        senderAvatar: responderAvatar,
-        content: getRandomCommunityReply(textToSend),
-        createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        isSelf: false,
-      };
-
-      setMessages((prev) => ({
-        ...prev,
-        [activeTopic.id]: [...(prev[activeTopic.id] || []), communityReply],
-      }));
-    }, 2200);
   };
 
   const handleTopicCreated = (topicData: {
@@ -429,22 +381,6 @@ export default function ChatPage() {
                 </div>
               ))}
 
-              {/* Typing Indicator */}
-              {typingUser && (
-                <div className="flex items-center gap-3 animate-pulse">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600/20 p-0.5 overflow-hidden shrink-0">
-                    <img src={typingUser.avatar} alt="Avatar" className="w-full h-full object-cover rounded-lg" />
-                  </div>
-                  <div className="p-3 bg-blue-50 dark:bg-slate-800/80 border border-blue-200/60 dark:border-slate-700 rounded-2xl rounded-tl-none text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-2">
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full animate-ping" />
-                      <span className="w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full animate-ping delay-150" />
-                      <span className="w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full animate-ping delay-300" />
-                    </span>
-                    <span>{typingUser.name} est en train d'écrire...</span>
-                  </div>
-                </div>
-              )}
               <div ref={messagesEndRef} />
             </div>
 
