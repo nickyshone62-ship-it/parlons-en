@@ -473,7 +473,7 @@ export default function ChatPage() {
         <div className="flex flex-col lg:flex-row gap-4 w-full">
           
           {/* LEFT COLUMN: USER CREATED TOPICS LIST */}
-          <div className={`w-full lg:w-80 shrink-0 bg-white dark:bg-slate-900 rounded-[32px] p-4 border-2 border-blue-200/80 dark:border-slate-800 shadow-xl shadow-blue-600/10 space-y-3 ${
+          <div className={`w-full lg:w-80 shrink-0 bg-white dark:bg-slate-900 rounded-[28px] sm:rounded-[32px] p-3.5 sm:p-4 border-2 border-blue-300 dark:border-slate-800 shadow-xl space-y-3 ${
             mobileTab === 'chat' ? 'hidden lg:block' : 'block'
           }`}>
             
@@ -487,7 +487,7 @@ export default function ChatPage() {
               </span>
             </div>
 
-            <div className="space-y-2 overflow-y-auto max-h-[480px] sm:max-h-[520px] flex flex-col gap-2 pr-1 scrollbar-thin scrollbar-thumb-blue-200">
+            <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-280px)] min-h-[380px] sm:max-h-[520px] flex flex-col gap-2 pr-1 scrollbar-thin scrollbar-thumb-blue-200">
               {filteredTopics.length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-500 font-bold space-y-2">
                   <p>Aucun sujet ne correspond à votre recherche.</p>
@@ -548,20 +548,20 @@ export default function ChatPage() {
           </div>
 
           {/* RIGHT COLUMN: LIVE CHAT STREAM */}
-          <div className={`flex-1 bg-white dark:bg-slate-900 rounded-[32px] border-2 border-blue-200/80 dark:border-slate-800 shadow-2xl shadow-blue-600/10 flex-col h-[580px] sm:h-[620px] overflow-hidden ${
+          <div className={`flex-1 bg-white dark:bg-slate-900 rounded-[28px] sm:rounded-[32px] border-2 border-blue-300 dark:border-slate-800 shadow-2xl flex-col h-[calc(100vh-230px)] min-h-[440px] max-h-[660px] sm:h-[620px] overflow-hidden ${
             mobileTab === 'topics' ? 'hidden lg:flex' : 'flex'
           }`}>
             
             {/* Chat Stream Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white flex items-center justify-between border-b border-blue-500/30 shrink-0">
+            <div className="p-3.5 sm:p-5 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 text-white flex items-center justify-between border-b border-blue-500/30 shrink-0">
               <div className="space-y-1 max-w-xl">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {/* Back to topics button on mobile */}
                   <button
                     onClick={() => setMobileTab('topics')}
-                    className="lg:hidden text-xs bg-white/20 hover:bg-white/30 text-white px-2.5 py-1 rounded-full font-bold transition flex items-center gap-1"
+                    className="lg:hidden text-xs bg-amber-400 hover:bg-yellow-300 text-slate-950 px-3 py-1 rounded-full font-black transition flex items-center gap-1 shadow-md cursor-pointer"
                   >
-                    ← Salons
+                    ← Salons de Chat
                   </button>
                   <span className="bg-white/20 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full border border-white/30">
                     {activeTopic.categoryName}
