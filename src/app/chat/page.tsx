@@ -31,6 +31,9 @@ import {
   ArrowDown,
   LogIn,
   Trash2,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 
 import {
@@ -44,6 +47,7 @@ import {
   fetchAllChatMessages,
   deleteChatMessage,
   deleteAllChatMessages,
+  editChatMessage,
 } from '@/lib/supabase/chat';
 
 const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
@@ -61,6 +65,8 @@ export default function ChatPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileTab, setMobileTab] = useState<'topics' | 'chat'>('chat');
   const [inputValue, setInputValue] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
   const [isNewTopicModalOpen, setIsNewTopicModalOpen] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -256,6 +262,32 @@ export default function ChatPage() {
       ...prev,
       [activeTopic.id]: (prev[activeTopic.id] || []).filter((m) => m.id !== msgId),
     }));
+  };
+
+  const handleStartEdit = (msgId: string, currentContent: string) => {
+    setEditingMessageId(msgId);
+    setEditingText(currentContent);
+  };
+
+  const handleSaveEdit = async (msgId: string) => {
+    if (!activeTopic || !editingText.trim()) return;
+    const trimmed = editingText.trim();
+    await editChatMessage(msgId, activeTopic.id, trimmed);
+
+    setMessages((prev) => ({
+      ...prev,
+      [activeTopic.id]: (prev[activeTopic.id] || []).map((m) =>
+        m.id === msgId ? { ...m, content: trimmed } : m
+      ),
+    }));
+
+    setEditingMessageId(null);
+    setEditingText('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingText('');
   };
 
   const handleClearCurrentTopicMessages = async () => {
@@ -601,29 +633,74 @@ export default function ChatPage() {
                         />
                       </div>
 
-                      <div className="space-y-1 group">
+                      <div className="space-y-1 group flex-1">
                         <div className={`flex items-center gap-2 text-[11px] font-black ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'}`}>
                           <span>{msg.senderName}</span>
                           <span className="text-[10px] font-bold opacity-60">• {msg.createdAt}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/60 transition opacity-0 group-hover:opacity-100 cursor-pointer ml-1"
-                            title="Supprimer ce message"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition ml-1">
+                            {isUserMsg && (
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(msg.id, msg.content)}
+                                className="p-1 text-slate-400 hover:text-amber-500 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/60 transition cursor-pointer"
+                                title="Modifier ce message"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/60 transition cursor-pointer"
+                              title="Supprimer ce message"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
 
-                        <div
-                          className={`p-3.5 rounded-2xl text-xs sm:text-sm font-bold leading-relaxed shadow-sm ${
-                            isUserMsg
-                              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
-                              : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-tl-none'
-                          }`}
-                        >
-                          {msg.content}
-                        </div>
+                        {editingMessageId === msg.id ? (
+                          <div className="flex items-center gap-2 p-1.5 bg-slate-900 rounded-2xl border-2 border-amber-400">
+                            <input
+                              type="text"
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEdit(msg.id);
+                                if (e.key === 'Escape') handleCancelEdit();
+                              }}
+                              className="w-full bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-700 outline-none focus:border-amber-400"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEdit(msg.id)}
+                              className="p-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl font-black shrink-0 cursor-pointer"
+                              title="Enregistrer"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelEdit}
+                              className="p-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-black shrink-0 cursor-pointer"
+                              title="Annuler"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            className={`p-3.5 rounded-2xl text-xs sm:text-sm font-bold leading-relaxed shadow-sm ${
+                              isUserMsg
+                                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none'
+                                : 'bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-slate-700 rounded-tl-none'
+                            }`}
+                          >
+                            {msg.content}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

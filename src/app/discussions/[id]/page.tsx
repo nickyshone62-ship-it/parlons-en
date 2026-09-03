@@ -31,6 +31,10 @@ import {
   AlertCircle,
   User,
   LogIn,
+  Pencil,
+  Trash2,
+  Check,
+  X,
 } from 'lucide-react';
 
 export interface DiscussionOpinion {
@@ -166,6 +170,28 @@ export default function OfficialDiscussionDetailPage({
     setDiscussionData((prev) => ({ ...prev, opinionsCount: prev.opinionsCount + 1 }));
     setNewOpinionText('');
     setIsSubmitting(false);
+  };
+
+  const [editingOpinionId, setEditingOpinionId] = useState<string | null>(null);
+  const [editingOpinionText, setEditingOpinionText] = useState('');
+
+  const handleDeleteOpinion = (opId: string) => {
+    setOpinions((prev) => prev.filter((op) => op.id !== opId));
+    setDiscussionData((prev) => ({ ...prev, opinionsCount: Math.max(0, prev.opinionsCount - 1) }));
+  };
+
+  const handleStartEditOpinion = (opId: string, text: string) => {
+    setEditingOpinionId(opId);
+    setEditingOpinionText(text);
+  };
+
+  const handleSaveEditOpinion = (opId: string) => {
+    if (!editingOpinionText.trim()) return;
+    setOpinions((prev) =>
+      prev.map((op) => (op.id === opId ? { ...op, content: editingOpinionText.trim() } : op))
+    );
+    setEditingOpinionId(null);
+    setEditingOpinionText('');
   };
 
   const handleLikeOpinion = (opId: string) => {
@@ -339,11 +365,57 @@ export default function OfficialDiscussionDetailPage({
                       <span className="text-slate-400">•</span>
                       <span className="text-slate-500 dark:text-slate-400 font-medium">{op.createdAt}</span>
                     </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditOpinion(op.id, op.content)}
+                        className="p-1 text-slate-400 hover:text-amber-500 rounded transition cursor-pointer"
+                        title="Modifier cet avis"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOpinion(op.id)}
+                        className="p-1 text-slate-400 hover:text-rose-500 rounded transition cursor-pointer"
+                        title="Supprimer cet avis"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
-                  <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
-                    {op.content}
-                  </p>
+                  {editingOpinionId === op.id ? (
+                    <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border-2 border-amber-400">
+                      <textarea
+                        value={editingOpinionText}
+                        onChange={(e) => setEditingOpinionText(e.target.value)}
+                        className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm font-bold p-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none focus:border-amber-400 min-h-[80px]"
+                        autoFocus
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingOpinionId(null)}
+                          className="px-3 py-1 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1"
+                        >
+                          <X className="w-3.5 h-3.5" /> Annuler
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEditOpinion(op.id)}
+                          className="px-3.5 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1 shadow-sm"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Enregistrer
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
+                      {op.content}
+                    </p>
+                  )}
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/80">
                     <button

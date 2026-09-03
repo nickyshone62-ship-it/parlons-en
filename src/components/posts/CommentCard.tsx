@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { toggleCommentVote } from '@/lib/supabase/posts';
 import { getPostViews, incrementPostViews, getCommentLikes, updateCommentLikesCount } from '@/lib/viewsManager';
-import { ShieldCheck, ThumbsUp, Eye, Flag } from 'lucide-react';
+import { ShieldCheck, ThumbsUp, Eye, Flag, Pencil, Trash2, Check, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export interface CommentCardProps {
@@ -16,23 +16,34 @@ export interface CommentCardProps {
   viewsCount?: number;
   hasVoted?: boolean;
   isAuthenticated?: boolean;
+  isAuthor?: boolean;
   onRequireAuth?: () => void;
   onReport?: (commentId: string) => void;
+  onEdit?: (commentId: string, newContent: string) => void;
+  onDelete?: (commentId: string) => void;
 }
 
 export const CommentCard: React.FC<CommentCardProps> = ({
   id,
-  content,
+  content: initialContent,
   authorPseudonym,
   createdAt,
   upvotesCount: initialCount,
   viewsCount: initialViewsCount = 1,
   hasVoted: initialHasVoted = false,
   isAuthenticated = false,
+  isAuthor = false,
   onRequireAuth,
   onReport,
+  onEdit,
+  onDelete,
 }) => {
   const router = useRouter();
+
+  // Content edit state
+  const [content, setContent] = useState(initialContent);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(initialContent);
 
   // Likes state
   const [votesCount, setVotesCount] = useState(initialCount);
@@ -110,22 +121,83 @@ export const CommentCard: React.FC<CommentCardProps> = ({
           </div>
         </div>
 
-        {onReport && (
-          <button
-            type="button"
-            onClick={() => onReport(id)}
-            className="p-1 text-slate-400 hover:text-rose-500 rounded transition cursor-pointer"
-            title="Signaler cette réponse"
-          >
-            <Flag className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditing(true);
+                setEditText(content);
+              }}
+              className="p-1 text-slate-400 hover:text-amber-500 rounded transition cursor-pointer"
+              title="Modifier ma réponse"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(id)}
+              className="p-1 text-slate-400 hover:text-rose-500 rounded transition cursor-pointer"
+              title="Supprimer ma réponse"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {onReport && (
+            <button
+              type="button"
+              onClick={() => onReport(id)}
+              className="p-1 text-slate-400 hover:text-rose-500 rounded transition cursor-pointer"
+              title="Signaler cette réponse"
+            >
+              <Flag className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Content Text */}
-      <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-medium whitespace-pre-line">
-        {content}
-      </p>
+      {/* Content Text or Edit Mode */}
+      {isEditing ? (
+        <div className="space-y-2 p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border-2 border-amber-400">
+          <textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs sm:text-sm font-bold p-3 rounded-xl border border-slate-200 dark:border-slate-800 outline-none focus:border-amber-400 min-h-[90px]"
+            placeholder="Modifiez votre réponse..."
+            autoFocus
+          />
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setIsEditing(false)}
+              className="px-3 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1"
+            >
+              <X className="w-3.5 h-3.5" /> Annuler
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (editText.trim()) {
+                  setContent(editText.trim());
+                  setIsEditing(false);
+                  if (onEdit) onEdit(id, editText.trim());
+                }
+              }}
+              className="px-4 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1 shadow-sm"
+            >
+              <Check className="w-3.5 h-3.5" /> Enregistrer
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed font-medium whitespace-pre-line">
+          {content}
+        </p>
+      )}
 
       {/* Footer: Likes + Views */}
       <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-4 text-xs">

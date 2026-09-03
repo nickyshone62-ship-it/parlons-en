@@ -291,3 +291,31 @@ export async function deleteAllChatMessages(): Promise<boolean> {
 
   return true;
 }
+
+/**
+ * Edit a specific chat message in Supabase DB and local storage
+ */
+export async function editChatMessage(messageId: string, topicId: string, newContent: string): Promise<boolean> {
+  const supabase = createClient();
+
+  try {
+    await supabase.from('chat_messages').update({ content: newContent }).eq('id', messageId);
+  } catch (e) {}
+
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(CHAT_MESSAGES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed[topicId]) {
+          parsed[topicId] = parsed[topicId].map((m: ChatMessage) =>
+            m.id === messageId ? { ...m, content: newContent } : m
+          );
+          localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(parsed));
+        }
+      }
+    } catch (e) {}
+  }
+
+  return true;
+}
