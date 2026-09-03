@@ -28,6 +28,7 @@ import {
   Flame,
   Search,
   Filter,
+  ArrowDown,
 } from 'lucide-react';
 
 export interface UserChatTopic {
@@ -84,8 +85,11 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
   const [isNewTopicModalOpen, setIsNewTopicModalOpen] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isScrolledUpRef = useRef(false);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -169,24 +173,48 @@ export default function ChatPage() {
     }
   }, [topics, isLoaded]);
 
+  const handleContainerScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    isScrolledUpRef.current = !isAtBottom;
+    setShowScrollBottomBtn(!isAtBottom);
+  };
+
   const scrollToBottom = (smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto',
+      });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    }
+    isScrolledUpRef.current = false;
+    setShowScrollBottomBtn(false);
   };
 
   useEffect(() => {
-    scrollToBottom(false);
+    isScrolledUpRef.current = false;
+    setShowScrollBottomBtn(false);
+    setTimeout(() => scrollToBottom(false), 50);
   }, [activeTopic]);
 
   useEffect(() => {
-    scrollToBottom(true);
+    if (!isScrolledUpRef.current) {
+      scrollToBottom(true);
+    }
   }, [messages]);
 
   const handleSelectTopic = (topic: UserChatTopic) => {
     setActiveTopic(topic);
     setMobileTab('chat');
+    isScrolledUpRef.current = false;
+    setShowScrollBottomBtn(false);
     setTimeout(() => {
+      scrollToBottom(false);
       inputRef.current?.focus();
-    }, 100);
+    }, 50);
   };
 
   const currentPseudonym = session?.anonymousIdentity?.anonymous_name || 'Utilisateur #4821';
@@ -509,7 +537,11 @@ export default function ChatPage() {
             </div>
 
             {/* Messages Feed */}
-            <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-blue-50/40 via-white to-blue-50/20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 scrollbar-thin scrollbar-thumb-blue-400">
+            <div
+              ref={messagesContainerRef}
+              onScroll={handleContainerScroll}
+              className="relative flex-1 p-4 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-blue-50/40 via-white to-blue-50/20 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900 scrollbar-thin scrollbar-thumb-blue-400"
+            >
               {currentMessages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3 my-auto">
                   <div className="w-14 h-14 rounded-3xl bg-blue-100 dark:bg-slate-800 text-blue-600 flex items-center justify-center shadow-inner">
@@ -567,6 +599,20 @@ export default function ChatPage() {
               )}
 
               <div ref={messagesEndRef} />
+
+              {/* Floating scroll down button when user scrolls up */}
+              {showScrollBottomBtn && (
+                <div className="sticky bottom-2 flex justify-center z-30 pointer-events-auto">
+                  <button
+                    type="button"
+                    onClick={() => scrollToBottom(true)}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs px-4 py-2 rounded-full shadow-2xl flex items-center gap-1.5 transition-all transform hover:scale-105 active:scale-95 cursor-pointer border border-white/20"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                    <span>Défiler vers les derniers messages</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Emoji Shortcut Bar */}
