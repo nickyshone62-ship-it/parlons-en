@@ -74,6 +74,7 @@ export default function AdminPage() {
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [previewScreenshotUrl, setPreviewScreenshotUrl] = useState<string | null>(null);
 
   // Warning Modal State
   const [warningTarget, setWarningTarget] = useState<{ userPseudonym: string; postTitle?: string } | null>(null);
@@ -650,7 +651,7 @@ export default function AdminPage() {
                   <tr className="bg-slate-100 dark:bg-slate-800/80 text-[11px] font-black uppercase text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700">
                     <th className="p-3">Utilisateur</th>
                     <th className="p-3">Moyen & Montant</th>
-                    <th className="p-3">ID Transaction</th>
+                    <th className="p-3">Preuve / Capture d'Écran</th>
                     <th className="p-3">Statut</th>
                     <th className="p-3 text-right">Actions d'Approbation</th>
                   </tr>
@@ -684,10 +685,29 @@ export default function AdminPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="p-3 font-mono font-black text-slate-800 dark:text-slate-200">
-                          <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-                            {payment.transaction_id}
-                          </span>
+                        <td className="p-3">
+                          {payment.payment_screenshot_url ? (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewScreenshotUrl(payment.payment_screenshot_url!)}
+                              className="flex items-center gap-2.5 group cursor-pointer text-left"
+                              title="Cliquer pour afficher la capture d'écran en grand"
+                            >
+                              <div className="w-12 h-12 rounded-xl border-2 border-amber-400 overflow-hidden bg-slate-950 shrink-0 shadow-md group-hover:scale-105 transition">
+                                <img src={payment.payment_screenshot_url} alt="Capture de paiement" className="w-full h-full object-cover" />
+                              </div>
+                              <div>
+                                <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 underline block group-hover:text-emerald-500">
+                                  🔍 Voir la capture
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-medium">Reçu joint</span>
+                              </div>
+                            </button>
+                          ) : (
+                            <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 font-mono text-[11px]">
+                              {payment.transaction_id || 'SMS de transfert'}
+                            </span>
+                          )}
                         </td>
                         <td className="p-3">
                           {payment.status === 'approved' && (
@@ -1099,6 +1119,55 @@ export default function AdminPage() {
           postTitle={warningTarget.postTitle}
           onConfirmWarning={handleConfirmWarning}
         />
+      )}
+
+      {/* Payment Screenshot Preview Lightbox Modal */}
+      {previewScreenshotUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewScreenshotUrl(null)}
+        >
+          <div
+            className="max-w-3xl w-full bg-slate-900 border-2 border-amber-400/60 rounded-3xl p-5 space-y-4 shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
+                <span className="text-amber-400">📷</span>
+                <span>Preuve de Paiement (Capture d'écran 500 FCFA)</span>
+              </h3>
+              <button
+                onClick={() => setPreviewScreenshotUrl(null)}
+                className="w-8 h-8 rounded-full bg-slate-800 hover:bg-rose-600 text-white font-black flex items-center justify-center transition cursor-pointer text-sm"
+                title="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="max-h-[75vh] overflow-auto rounded-2xl border border-slate-800 bg-slate-950 flex items-center justify-center p-2">
+              <img
+                src={previewScreenshotUrl}
+                alt="Capture de reçu de paiement"
+                className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-lg"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs text-slate-400 font-bold">
+                Vérifiez la lisibilité du transfert avant de valider l'inscription.
+              </span>
+              <Button
+                onClick={() => setPreviewScreenshotUrl(null)}
+                variant="outline"
+                size="sm"
+                className="rounded-full border-slate-700 hover:bg-slate-800 text-white font-bold text-xs"
+              >
+                Fermer l'aperçu
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       <MobileNav />

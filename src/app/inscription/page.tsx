@@ -8,7 +8,7 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { signUpUser } from '@/lib/auth/actions';
-import { Mail, Lock, ShieldCheck, UserPlus, AlertCircle, CheckCircle2, User, MessageSquare, Copy, ExternalLink, CreditCard, Check, PhoneCall } from 'lucide-react';
+import { Mail, Lock, ShieldCheck, UserPlus, AlertCircle, CheckCircle2, User, MessageSquare, Copy, ExternalLink, CreditCard, Check, PhoneCall, UploadCloud, Image as ImageIcon, Trash2, Camera } from 'lucide-react';
 import { AvatarPicker } from '@/components/auth/AvatarPicker';
 import { PRESET_AVATARS, AvatarOption } from '@/data/avatars';
 import { OrangeMoneyLogo, WaveLogo } from '@/components/ui/PaymentLogos';
@@ -22,9 +22,10 @@ export default function InscriptionPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption>(PRESET_AVATARS[0]);
 
-  // Payment State (500 FCFA Mandatory)
+  // Payment State (500 FCFA Mandatory Screenshot Upload)
   const [paymentMethod, setPaymentMethod] = useState<'orange_money' | 'wave'>('orange_money');
-  const [transactionId, setTransactionId] = useState('');
+  const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
+  const [screenshotName, setScreenshotName] = useState<string>('');
   const [copiedUSSD, setCopiedUSSD] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +42,23 @@ export default function InscriptionPage() {
     navigator.clipboard.writeText(USSD_CODE);
     setCopiedUSSD(true);
     setTimeout(() => setCopiedUSSD(false), 2500);
+  };
+
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setErrorMessage('La taille de la capture d\'écran ne doit pas dépasser 10 Mo.');
+        return;
+      }
+      setScreenshotName(file.name);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentScreenshot(reader.result as string);
+        setErrorMessage(null);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,9 +80,9 @@ export default function InscriptionPage() {
       return;
     }
 
-    // MANDATORY Transaction ID Validation
-    if (!transactionId.trim()) {
-      setErrorMessage("La saisie de l'ID / Référence de transaction (500 FCFA) est obligatoire pour valider votre inscription.");
+    // MANDATORY Payment Screenshot Validation
+    if (!paymentScreenshot) {
+      setErrorMessage("Veuillez joindre la capture d'écran de votre preuve de paiement de 500 FCFA.");
       return;
     }
 
@@ -77,7 +95,6 @@ export default function InscriptionPage() {
         firstName,
         lastName,
         avatarUrl: selectedAvatar.url,
-        transactionId: transactionId.trim(),
         paymentMethod,
       });
 
@@ -88,13 +105,13 @@ export default function InscriptionPage() {
           localStorage.setItem('parlons_en_has_seen_onboarding', 'true');
         }
         
-        // Save payment to admin dashboard
+        // Save payment to admin dashboard with screenshot
         try {
           const { addPaymentRecord } = await import('@/lib/admin/admin');
           addPaymentRecord({
             user_email: email,
             user_name: `${firstName} ${lastName}`,
-            transaction_id: transactionId.trim(),
+            payment_screenshot_url: paymentScreenshot,
             payment_method: paymentMethod,
           });
         } catch (e) {
@@ -392,21 +409,85 @@ export default function InscriptionPage() {
                     </div>
                   )}
 
-                  {/* MANDATORY TRANSACTION ID INPUT */}
-                  <div className="space-y-1.5 pt-1">
-                    <label className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <CreditCard className="w-4 h-4 text-amber-500" />
-                      <span>Saisissez l'ID / Référence de votre Transaction (Obligatoire) *</span>
+                  {/* MANDATORY PAYMENT SCREENSHOT UPLOAD */}
+                  <div className="space-y-2 pt-1">
+                    <label className="text-xs font-black text-slate-900 dark:text-white flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Camera className="w-4 h-4 text-amber-500" />
+                        <span>Capture d'écran de la preuve de paiement (Obligatoire) *</span>
+                      </span>
+                      {paymentScreenshot && (
+                        <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                          ✅ Capture jointe
+                        </span>
+                      )}
                     </label>
-                    <Input
-                      placeholder="Ex: OM.20260903.18239 ou WAVE-892341"
-                      value={transactionId}
-                      onChange={(e) => setTransactionId(e.target.value)}
-                      className="bg-white dark:bg-slate-900 border-2 border-amber-400 focus:border-amber-500 font-bold"
-                      required
+
+                    <input
+                      type="file"
+                      id="payment-screenshot-input"
+                      accept="image/*"
+                      onChange={handleScreenshotChange}
+                      className="hidden"
                     />
-                    <p className="text-[11px] text-amber-700 dark:text-amber-400 font-bold">
-                      ⚠️ L'ID de transaction figurant dans votre SMS de confirmation (Orange Money ou Wave) est indispensable pour valider la création de votre compte.
+
+                    {!paymentScreenshot ? (
+                      <label
+                        htmlFor="payment-screenshot-input"
+                        className="p-5 sm:p-6 rounded-2xl border-2 border-dashed border-amber-400 dark:border-amber-500/60 bg-amber-400/5 hover:bg-amber-400/10 transition cursor-pointer flex flex-col items-center justify-center text-center space-y-2 group shadow-xs"
+                      >
+                        <div className="w-12 h-12 rounded-2xl bg-amber-400/20 text-amber-500 flex items-center justify-center group-hover:scale-110 transition">
+                          <UploadCloud className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
+                            Cliquez pour téléverser votre capture d'écran de paiement
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-bold">
+                            Reçu Orange Money ou Wave (JPG, PNG, WEBP — Max 10 Mo)
+                          </p>
+                        </div>
+                      </label>
+                    ) : (
+                      <div className="p-3.5 bg-white dark:bg-slate-900 rounded-2xl border-2 border-emerald-500/60 flex items-center justify-between gap-3 shadow-md">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="w-14 h-14 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shrink-0 bg-slate-950">
+                            <img src={paymentScreenshot} alt="Capture de paiement" className="w-full h-full object-cover" />
+                          </div>
+                          <div className="space-y-0.5 truncate">
+                            <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                              {screenshotName || 'capture_paiement_500fcfa.png'}
+                            </p>
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Image de reçu validée
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <label
+                            htmlFor="payment-screenshot-input"
+                            className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-black cursor-pointer border border-slate-300 dark:border-slate-700"
+                          >
+                            Changer
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPaymentScreenshot(null);
+                              setScreenshotName('');
+                            }}
+                            className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-xl border border-rose-200 dark:border-rose-950 cursor-pointer"
+                            title="Supprimer la capture"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 font-bold pt-0.5">
+                      ⚠️ La capture d'écran nette du SMS ou reçu de votre transfert (500 FCFA) est vérifiée par l'administrateur avant l'activation du compte.
                     </p>
                   </div>
                 </div>
