@@ -245,3 +245,49 @@ export async function fetchAllChatMessages(): Promise<Record<string, ChatMessage
 
   return messageMap;
 }
+
+/**
+ * Delete a specific chat message from Supabase DB and local storage
+ */
+export async function deleteChatMessage(messageId: string, topicId: string): Promise<boolean> {
+  const supabase = createClient();
+
+  try {
+    await supabase.from('chat_messages').delete().eq('id', messageId);
+  } catch (e) {}
+
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(CHAT_MESSAGES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed[topicId]) {
+          parsed[topicId] = parsed[topicId].filter((m: ChatMessage) => m.id !== messageId);
+          localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(parsed));
+        }
+      }
+    } catch (e) {}
+  }
+
+  return true;
+}
+
+/**
+ * Purges all chat messages from Supabase DB and local storage
+ */
+export async function deleteAllChatMessages(): Promise<boolean> {
+  const supabase = createClient();
+  const dummyUUID = '00000000-0000-0000-0000-000000000000';
+
+  try {
+    await supabase.from('chat_messages').delete().neq('id', dummyUUID);
+  } catch (e) {}
+
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify({}));
+    } catch (e) {}
+  }
+
+  return true;
+}

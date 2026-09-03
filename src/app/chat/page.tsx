@@ -30,6 +30,7 @@ import {
   Filter,
   ArrowDown,
   LogIn,
+  Trash2,
 } from 'lucide-react';
 
 import {
@@ -41,6 +42,8 @@ import {
   broadcastChatTopic,
   fetchAllChatTopics,
   fetchAllChatMessages,
+  deleteChatMessage,
+  deleteAllChatMessages,
 } from '@/lib/supabase/chat';
 
 const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
@@ -244,6 +247,24 @@ export default function ChatPage() {
       scrollToBottom(true);
       inputRef.current?.focus();
     }, 50);
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!selectedTopic) return;
+    await deleteChatMessage(msgId, selectedTopic.id);
+    setChatMessages((prev) => ({
+      ...prev,
+      [selectedTopic.id]: (prev[selectedTopic.id] || []).filter((m) => m.id !== msgId),
+    }));
+  };
+
+  const handleClearCurrentTopicMessages = async () => {
+    if (!selectedTopic) return;
+    await deleteAllChatMessages();
+    setChatMessages((prev) => ({
+      ...prev,
+      [selectedTopic.id]: [],
+    }));
   };
 
   const handleTopicCreated = (topicData: {
@@ -522,9 +543,20 @@ export default function ChatPage() {
                 </h2>
               </div>
 
-              <div className="flex items-center gap-1.5 bg-white/20 text-white px-3 py-1 rounded-full text-xs font-black backdrop-blur-md border border-white/30 shrink-0">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>{activeTopic.activeCount} en ligne</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleClearCurrentTopicMessages}
+                  className="p-1.5 bg-white/10 hover:bg-rose-500/80 text-white rounded-xl text-xs font-black transition border border-white/20 flex items-center gap-1 cursor-pointer"
+                  title="Vider les messages du salon"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Vider</span>
+                </button>
+                <div className="flex items-center gap-1.5 bg-white/20 text-white px-3 py-1 rounded-full text-xs font-black backdrop-blur-md border border-white/30">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>En Direct</span>
+                </div>
               </div>
             </div>
 
@@ -569,10 +601,18 @@ export default function ChatPage() {
                         />
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="space-y-1 group">
                         <div className={`flex items-center gap-2 text-[11px] font-black ${isUserMsg ? 'justify-end text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400'}`}>
                           <span>{msg.senderName}</span>
                           <span className="text-[10px] font-bold opacity-60">• {msg.createdAt}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            className="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/60 transition opacity-0 group-hover:opacity-100 cursor-pointer ml-1"
+                            title="Supprimer ce message"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
 
                         <div
