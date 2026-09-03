@@ -211,7 +211,7 @@ export default function InscriptionPage() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-4 max-w-4xl mx-auto">
+              <form onSubmit={handleSubmit} className="space-y-4 max-w-4xl mx-auto w-full max-w-full overflow-hidden">
                 
                 {errorMessage && (
                   <div className="p-3.5 bg-rose-500/15 border-2 border-rose-500/60 rounded-2xl text-rose-700 dark:text-rose-300 font-extrabold text-xs flex items-center gap-2.5 shadow-xs">
@@ -221,7 +221,7 @@ export default function InscriptionPage() {
                 )}
 
                 {/* ROW 1: Names + Email */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3.5">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3.5 w-full max-w-full">
                   <Input
                     label="Prénom"
                     placeholder="Prénom"
@@ -252,7 +252,7 @@ export default function InscriptionPage() {
                 </div>
 
                 {/* ROW 2: Bitmoji Picker Bar */}
-                <div className="bg-blue-600/10 dark:bg-slate-800/80 p-2.5 sm:p-3 rounded-3xl border border-blue-200/80 dark:border-slate-700 shadow-sm">
+                <div className="bg-blue-600/10 dark:bg-slate-800/80 p-2.5 sm:p-3 rounded-3xl border border-blue-200/80 dark:border-slate-700 shadow-sm w-full max-w-full min-w-0 overflow-hidden">
                   <AvatarPicker
                     selectedAvatar={selectedAvatar}
                     onSelectAvatar={setSelectedAvatar}
@@ -260,7 +260,7 @@ export default function InscriptionPage() {
                 </div>
 
                 {/* ROW 3: Passwords */}
-                <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5">
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 w-full max-w-full">
                   <Input
                     label="Mot de passe"
                     type="password"
@@ -282,7 +282,7 @@ export default function InscriptionPage() {
                 </div>
 
                 {/* ROW 4: MANDATORY 500 FCFA PAYMENT SECTION */}
-                <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-yellow-500/10 dark:from-amber-500/15 dark:to-slate-900 border-2 border-amber-400/60 dark:border-amber-500/40 space-y-4 shadow-md">
+                <div className="p-3.5 sm:p-5 rounded-3xl bg-gradient-to-br from-amber-500/10 via-amber-400/5 to-yellow-500/10 dark:from-amber-500/15 dark:to-slate-900 border-2 border-amber-400/60 dark:border-amber-500/40 space-y-4 shadow-md w-full max-w-full min-w-0 overflow-hidden">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-amber-300/40 pb-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-black text-sm shadow">

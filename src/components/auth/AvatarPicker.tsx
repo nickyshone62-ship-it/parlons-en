@@ -45,9 +45,9 @@ export function AvatarPicker({ selectedAvatar, onSelectAvatar }: AvatarPickerPro
   };
 
   return (
-    <div className="space-y-2.5 w-full max-w-full">
+    <div className="space-y-2.5 w-full max-w-full min-w-0 overflow-hidden">
       {/* Snapchat Themed Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 min-w-0 w-full max-w-full">
         <label className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5 min-w-0">
           <span className="w-5 h-5 rounded-full bg-[#FFFC00] text-slate-950 flex items-center justify-center font-black text-[10px] shadow-xs shrink-0">
             👻
@@ -67,7 +67,7 @@ export function AvatarPicker({ selectedAvatar, onSelectAvatar }: AvatarPickerPro
       </div>
 
       {/* Snapchat Gender & Category Filter Pills */}
-      <div className="flex items-center gap-1 text-[11px] overflow-x-auto pb-0.5 scrollbar-none">
+      <div className="flex items-center gap-1 text-[11px] overflow-x-auto pb-0.5 scrollbar-none w-full max-w-full min-w-0">
         <button
           type="button"
           onClick={() => setActiveTab('all')}
@@ -115,7 +115,7 @@ export function AvatarPicker({ selectedAvatar, onSelectAvatar }: AvatarPickerPro
       </div>
 
       {/* Ultra-compact horizontal row of avatars */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 px-1 pr-6 scrollbar-none">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1.5 pt-0.5 px-1 pr-6 scrollbar-none w-full max-w-full min-w-0">
         {filteredAvatars.slice(0, 10).map((avatar) => {
           const isSelected = selectedAvatar.id === avatar.id;
           const isFailed = failedImages[avatar.id];
