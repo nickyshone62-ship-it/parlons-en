@@ -45,6 +45,7 @@ export default function ProblemDetailPage({
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<(Answer & { hasVoted: boolean })[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
@@ -57,6 +58,7 @@ export default function ProblemDetailPage({
     try {
       const session = await getCurrentUserSession();
       setIsAuthenticated(Boolean(session.user));
+      setIsAdmin(isAdminUser(session));
 
       const updatedViews = incrementPostViews(postId);
 
@@ -254,6 +256,14 @@ export default function ProblemDetailPage({
                       hasVoted={comment.hasVoted}
                       isAuthenticated={isAuthenticated}
                       onRequireAuth={() => router.push('/connexion')}
+                      onEdit={(commentId, newContent) => {
+                        setComments((prev) =>
+                          prev.map((c) => (c.id === commentId ? { ...c, content: newContent } : c))
+                        );
+                      }}
+                      onDelete={(commentId) => {
+                        setComments((prev) => prev.filter((c) => c.id !== commentId));
+                      }}
                     />
                   ))}
                 </div>

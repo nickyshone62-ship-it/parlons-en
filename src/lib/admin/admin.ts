@@ -287,4 +287,21 @@ export function startOrGetAdminUserChatTopic(userPseudonym: string, userName?: s
   return { topicId: cleanId, topicTitle };
 }
 
+export function editChatMessageInTopic(topicId: string, messageId: string, newContent: string): Record<string, any[]> {
+  const messagesMap = getStoredChatMessagesMap();
+  if (messagesMap[topicId]) {
+    messagesMap[topicId] = messagesMap[topicId].map((msg) =>
+      msg.id === messageId ? { ...msg, content: newContent } : msg
+    );
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messagesMap));
+    }
+    const targetMsg = messagesMap[topicId].find((m) => m.id === messageId);
+    if (targetMsg) {
+      broadcastChatMessage(targetMsg).catch(() => {});
+    }
+  }
+  return messagesMap;
+}
+
 

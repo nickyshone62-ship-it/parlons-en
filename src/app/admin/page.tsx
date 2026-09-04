@@ -20,6 +20,7 @@ import {
   postAdminAnnouncementToChat,
   sendAdminReplyToTopic,
   startOrGetAdminUserChatTopic,
+  editChatMessageInTopic,
   AdminUserItem,
 } from '@/lib/admin/admin';
 import {
@@ -56,6 +57,7 @@ import {
   MessageCircle,
   Send,
   UserCheck,
+  Pencil,
 } from 'lucide-react';
 
 import { resetPlatformToZero } from '@/lib/resetData';
@@ -89,6 +91,22 @@ export default function AdminPage() {
   const [topicReplyMap, setTopicReplyMap] = useState<Record<string, string>>({});
   const [directChatUser, setDirectChatUser] = useState<{ userPseudonym: string; userName?: string; topicId: string } | null>(null);
   const [directChatInputText, setDirectChatInputText] = useState('');
+  const [editingAdminMsgId, setEditingAdminMsgId] = useState<string | null>(null);
+  const [editingAdminMsgText, setEditingAdminMsgText] = useState('');
+
+  const handleStartEditAdminMsg = (msgId: string, content: string) => {
+    setEditingAdminMsgId(msgId);
+    setEditingAdminMsgText(content);
+  };
+
+  const handleSaveEditAdminMsg = (topicId: string, msgId: string) => {
+    if (!editingAdminMsgText.trim()) return;
+    const updated = editChatMessageInTopic(topicId, msgId, editingAdminMsgText.trim());
+    setChatMessagesMap({ ...updated });
+    setEditingAdminMsgId(null);
+    setEditingAdminMsgText('');
+    showToast('Message du chat modifié avec succès ! ✏️');
+  };
 
   useEffect(() => {
     async function checkAdminStatus() {
@@ -989,53 +1007,92 @@ export default function AdminPage() {
                           key={msg.id}
                           className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-start justify-between gap-3 shadow-2xs"
                         >
-                          <div className="flex items-start gap-2.5">
-                            <img
-                              src={msg.senderAvatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=Default'}
-                              alt="Avatar"
-                              className="w-7 h-7 rounded-full bg-slate-200 shrink-0"
-                            />
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-black text-slate-900 dark:text-white">
-                                  {msg.senderName}
-                                </span>
-                                <span className="text-[10px] text-slate-400 font-medium">{msg.createdAt}</span>
-                              </div>
-                              <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
-                                {msg.content}
-                              </p>
+                          {editingAdminMsgId === msg.id ? (
+                            <div className="flex-1 flex items-center gap-2 p-1.5 bg-slate-900 rounded-xl border border-amber-400">
+                              <input
+                                type="text"
+                                value={editingAdminMsgText}
+                                onChange={(e) => setEditingAdminMsgText(e.target.value)}
+                                className="flex-1 bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-700 outline-none focus:border-amber-400"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEditAdminMsg(topicId, msg.id)}
+                                className="px-3 py-1 bg-amber-400 text-slate-950 rounded-lg text-xs font-black"
+                              >
+                                Enregistrer
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingAdminMsgId(null)}
+                                className="px-2 py-1 bg-slate-700 text-white rounded-lg text-xs font-bold"
+                              >
+                                Annuler
+                              </button>
                             </div>
-                          </div>
+                          ) : (
+                            <>
+                              <div className="flex items-start gap-2.5">
+                                <img
+                                  src={msg.senderAvatar || 'https://api.dicebear.com/7.x/identicon/svg?seed=Default'}
+                                  alt="Avatar"
+                                  className="w-7 h-7 rounded-full bg-slate-200 shrink-0"
+                                />
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-black text-slate-900 dark:text-white">
+                                      {msg.senderName}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-medium">{msg.createdAt}</span>
+                                  </div>
+                                  <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                                    {msg.content}
+                                  </p>
+                                </div>
+                              </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => handleOpenDirectChat(msg.senderName)}
-                              className="p-1.5 bg-blue-500/20 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black transition cursor-pointer"
-                              title="Chatter directement avec cet utilisateur"
-                            >
-                              💬 Chatter
-                            </button>
-                            <button
-                              onClick={() =>
-                                setWarningTarget({
-                                  userPseudonym: msg.senderName,
-                                  postTitle: `Chat (${msg.content.slice(0, 30)}...)`,
-                                })
-                              }
-                              className="p-1.5 bg-amber-500/20 text-amber-700 dark:text-amber-300 hover:bg-amber-500 hover:text-slate-950 rounded-lg text-[10px] font-black transition"
-                              title="Avertir cet auteur"
-                            >
-                              ⚠️ Avertir
-                            </button>
-                            <button
-                              onClick={() => handleDeleteChatMessage(topicId, msg.id)}
-                              className="p-1.5 bg-rose-500/20 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black transition"
-                              title="Supprimer ce message du chat"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditAdminMsg(msg.id, msg.content)}
+                                  className="p-1.5 bg-amber-500/20 text-amber-700 dark:text-amber-300 hover:bg-amber-500 hover:text-slate-950 rounded-lg text-[10px] font-black transition"
+                                  title="Modifier ce message"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenDirectChat(msg.senderName)}
+                                  className="p-1.5 bg-blue-500/20 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black transition cursor-pointer"
+                                  title="Chatter directement avec cet utilisateur"
+                                >
+                                  💬 Chatter
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setWarningTarget({
+                                      userPseudonym: msg.senderName,
+                                      postTitle: `Chat (${msg.content.slice(0, 30)}...)`,
+                                    })
+                                  }
+                                  className="p-1.5 bg-amber-500/20 text-amber-700 dark:text-amber-300 hover:bg-amber-500 hover:text-slate-950 rounded-lg text-[10px] font-black transition"
+                                  title="Avertir cet auteur"
+                                >
+                                  ⚠️ Avertir
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteChatMessage(topicId, msg.id)}
+                                  className="p-1.5 bg-rose-500/20 text-rose-700 dark:text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black transition"
+                                  title="Supprimer ce message du chat"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1350,9 +1407,53 @@ export default function AdminPage() {
                       <span className={msg.senderId === 'admin-official' ? 'text-blue-600 dark:text-blue-400 font-extrabold' : 'text-slate-500'}>
                         {msg.senderName}
                       </span>
-                      <span className="text-slate-400 font-normal">{msg.createdAt}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-slate-400 font-normal">{msg.createdAt}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditAdminMsg(msg.id, msg.content)}
+                          className="p-1 text-slate-400 hover:text-amber-500 rounded transition cursor-pointer"
+                          title="Modifier ce message"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteChatMessage(directChatUser.topicId, msg.id)}
+                          className="p-1 text-slate-400 hover:text-rose-500 rounded transition cursor-pointer"
+                          title="Supprimer ce message"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
-                    <p className="font-semibold leading-relaxed">{msg.content}</p>
+                    {editingAdminMsgId === msg.id ? (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          value={editingAdminMsgText}
+                          onChange={(e) => setEditingAdminMsgText(e.target.value)}
+                          className="flex-1 px-3 py-1.5 rounded-xl bg-slate-950 text-white text-xs border border-amber-400 outline-none"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEditAdminMsg(directChatUser.topicId, msg.id)}
+                          className="px-3 py-1 bg-amber-400 text-slate-950 font-black rounded-xl text-[11px]"
+                        >
+                          Valider
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingAdminMsgId(null)}
+                          className="px-2 py-1 bg-slate-700 text-white rounded-xl text-[11px]"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="font-semibold leading-relaxed">{msg.content}</p>
+                    )}
                   </div>
                 ))
               )}

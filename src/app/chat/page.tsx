@@ -8,7 +8,7 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { NewPostModal } from '@/components/modals/NewPostModal';
 import { NewChatTopicModal } from '@/components/modals/NewChatTopicModal';
 import { Button } from '@/components/ui/Button';
-import { getCurrentUserSession } from '@/lib/auth/actions';
+import { getCurrentUserSession, isAdminUser } from '@/lib/auth/actions';
 import { UserSession } from '@/types';
 import {
   MessageSquare,
@@ -294,6 +294,14 @@ export default function ChatPage() {
     if (!activeTopic || !editingText.trim()) return;
     const trimmed = editingText.trim();
     await editChatMessage(msgId, activeTopic.id, trimmed);
+
+    const currentMsg = (messages[activeTopic.id] || []).find((m) => m.id === msgId);
+    if (currentMsg) {
+      broadcastChatMessage({
+        ...currentMsg,
+        content: trimmed,
+      });
+    }
 
     setMessages((prev) => ({
       ...prev,
@@ -642,6 +650,7 @@ export default function ChatPage() {
                     msg.senderName === currentPseudonym ||
                     (session?.user?.id && msg.senderId === session.user.id)
                   );
+                  const canManageMsg = isUserMsg || isAdminUser(session);
 
                   return (
                     <div
@@ -669,7 +678,7 @@ export default function ChatPage() {
                           <span className="text-[10px] font-bold text-slate-500 opacity-80">• {msg.createdAt}</span>
                           
                           <div className="flex items-center gap-1 transition ml-1 opacity-90 sm:opacity-0 group-hover:opacity-100">
-                            {isUserMsg && (
+                            {canManageMsg && (
                               <button
                                 type="button"
                                 onClick={() => handleStartEdit(msg.id, msg.content)}
@@ -679,14 +688,16 @@ export default function ChatPage() {
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteMessage(msg.id)}
-                              className="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/60 transition cursor-pointer"
-                              title="Supprimer ce message"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {canManageMsg && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/60 transition cursor-pointer"
+                                title="Supprimer ce message"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
