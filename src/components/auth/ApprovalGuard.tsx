@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { getCurrentUserSession, signOutUser, isAdminUser } from '@/lib/auth/actions';
-import { checkUserApprovalStatus } from '@/lib/admin/approval';
+import { checkUserApprovalStatus, checkUserApprovalStatusAsync } from '@/lib/admin/approval';
 import { UserSession } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { ShieldAlert, Clock, RefreshCw, LogOut, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -33,7 +33,7 @@ export const ApprovalGuard: React.FC<ApprovalGuardProps> = ({ children }) => {
           return;
         }
 
-        const status = checkUserApprovalStatus(currentSession.user.id, currentSession.user.email);
+        const status = await checkUserApprovalStatusAsync(currentSession.user.id, currentSession.user.email);
         setApprovalStatus(status);
       } else {
         setApprovalStatus('approved'); // Visitors without account can browse public areas

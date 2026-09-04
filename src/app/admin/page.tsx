@@ -25,6 +25,7 @@ import {
 } from '@/lib/admin/admin';
 import {
   getStoredAccountApprovals,
+  fetchAllAccountApprovals,
   approveUserAccount,
   rejectUserAccount,
   deleteUserAccount,
@@ -161,7 +162,7 @@ export default function AdminPage() {
     const currentWarnings = getStoredWarnings();
     const currentUsers = getAdminUsersList();
     const currentChat = getStoredChatMessagesMap();
-    const currentApprovals = getStoredAccountApprovals();
+    const currentApprovals = await fetchAllAccountApprovals();
 
     setPayments(currentPayments);
     setReports(currentReports);
@@ -180,6 +181,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadAdminData();
+
+    // Auto-refresh admin data every 5 seconds to catch newly registered user accounts from any device
+    const interval = setInterval(() => {
+      loadAdminData();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const showToast = (msg: string) => {
