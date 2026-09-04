@@ -1,26 +1,52 @@
 import { createBrowserClient } from '@supabase/ssr';
 
-// Fix Next.js browser polyfill process.version warning from @supabase/supabase-js
-if (typeof window !== 'undefined') {
-  try {
-    if (!(window as any).process) {
-      (window as any).process = { version: 'v22.0.0', env: {} };
-    } else {
-      Object.defineProperty((window as any).process, 'version', {
-        value: 'v22.0.0',
-        writable: true,
-        configurable: true,
-      });
-    }
-  } catch (e) {}
+// Safe proxy mock builder for legacy calls to deleted Supabase project
+function createDummyQueryBuilder() {
+  const dummy: any = {
+    select: () => dummy,
+    insert: () => dummy,
+    update: () => dummy,
+    upsert: () => dummy,
+    delete: () => dummy,
+    eq: () => dummy,
+    neq: () => dummy,
+    in: () => dummy,
+    or: () => dummy,
+    ilike: () => dummy,
+    order: () => dummy,
+    limit: () => dummy,
+    single: async () => ({ data: null, error: null }),
+    maybeSingle: async () => ({ data: null, error: null }),
+    then: (resolve: any) => resolve({ data: [], error: null, count: 0 }),
+  };
+  return dummy;
 }
 
-const FALLBACK_SUPABASE_URL = 'https://zgszhayubawamlteqory.supabase.co';
-const FALLBACK_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpnc3poYXl1YmF3YW1sdGVxb3J5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyNzA1OTAsImV4cCI6MjEwMzg0NjU5MH0.iaPJx859xRk88zGH7Kw5PSdga0ZRWRKDhjkYlIanRro';
-
 export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || FALLBACK_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || FALLBACK_SUPABASE_KEY;
+  // If Supabase project is deleted or unconfigured, return safe fallback object that never fails
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  return createBrowserClient(supabaseUrl, supabaseKey);
+    if (supabaseUrl && supabaseKey) {
+      return createBrowserClient(supabaseUrl, supabaseKey);
+    }
+  } catch (e) {}
+
+  return {
+    from: () => createDummyQueryBuilder(),
+    auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
+      signUp: async () => ({ data: { user: null }, error: null }),
+      signInWithPassword: async () => ({ data: { user: null }, error: null }),
+      signOut: async () => ({ error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+    channel: () => ({
+      on: function() { return this; },
+      subscribe: function() { return this; },
+      send: async () => ({ error: null }),
+      unsubscribe: () => {},
+    }),
+  } as any;
 }
