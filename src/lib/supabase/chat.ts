@@ -140,7 +140,23 @@ export async function broadcastChatMessage(msg: ChatMessage) {
     console.error("Broadcast error", e);
   }
 
-  // Try DB persistence
+  // 1. Save in Neon PostgreSQL via API route
+  try {
+    await fetch('/api/neon/chat/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: msg.id,
+        topicId: msg.topicId,
+        senderId: msg.senderId,
+        senderName: msg.senderName,
+        senderAvatar: msg.senderAvatar,
+        content: msg.content,
+      }),
+    });
+  } catch (e) {}
+
+  // 2. Try Supabase DB persistence fallback
   try {
     await supabase.from('chat_messages').insert([
       {
@@ -173,6 +189,23 @@ export async function broadcastChatTopic(topic: UserChatTopic) {
     console.error("Topic broadcast error", e);
   }
 
+  // 1. Save in Neon PostgreSQL via API route
+  try {
+    await fetch('/api/neon/chat/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: topic.id,
+        title: topic.title,
+        categorySlug: topic.categorySlug,
+        categoryName: topic.categoryName,
+        authorPseudonym: topic.authorPseudonym,
+        authorAvatar: topic.authorAvatar,
+      }),
+    });
+  } catch (e) {}
+
+  // 2. Try Supabase DB persistence fallback
   try {
     await supabase.from('chat_topics').insert([
       {
@@ -189,31 +222,54 @@ export async function broadcastChatTopic(topic: UserChatTopic) {
 }
 
 /**
- * Fetch topics from DB and local storage
+ * Fetch topics from Neon DB, Supabase & local storage
  */
 export async function fetchAllChatTopics(): Promise<UserChatTopic[]> {
   const supabase = createClient();
   let dbTopics: UserChatTopic[] = [];
 
+  // 1. Primary Source: Query Neon API route /api/neon/chat/topics
   try {
-    const { data } = await supabase
-      .from('chat_topics')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (data && data.length > 0) {
-      dbTopics = data.map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        categorySlug: t.category_slug || 'general',
-        categoryName: t.category_name || 'Café & Général',
-        authorPseudonym: t.author_pseudonym || 'Anonyme',
-        authorAvatar: t.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.id}`,
-        createdAt: 'Publié',
-        activeCount: 1,
-      }));
+    const res = await fetch('/api/neon/chat/topics', { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.topics) && json.topics.length > 0) {
+        dbTopics = json.topics.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          categorySlug: t.category_slug || 'general',
+          categoryName: t.category_name || 'Café & Général',
+          authorPseudonym: t.author_pseudonym || 'Anonyme',
+          authorAvatar: t.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.id}`,
+          createdAt: 'Publié',
+          activeCount: 1,
+        }));
+      }
     }
   } catch (e) {}
+
+  // 2. Fallback Source: Query Supabase
+  if (dbTopics.length === 0) {
+    try {
+      const { data } = await supabase
+        .from('chat_topics')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (data && data.length > 0) {
+        dbTopics = data.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          categorySlug: t.category_slug || 'general',
+          categoryName: t.category_name || 'Café & Général',
+          authorPseudonym: t.author_pseudonym || 'Anonyme',
+          authorAvatar: t.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.id}`,
+          createdAt: 'Publié',
+          activeCount: 1,
+        }));
+      }
+    } catch (e) {}
+  }
 
   let localTopics: UserChatTopic[] = [];
   if (typeof window !== 'undefined') {
@@ -234,7 +290,7 @@ export async function fetchAllChatTopics(): Promise<UserChatTopic[]> {
 }
 
 /**
- * Fetch messages from DB and local storage
+ * Fetch messages from Neon DB, Supabase & local storage
  */
 export async function fetchAllChatMessages(): Promise<Record<string, ChatMessage[]>> {
   const supabase = createClient();
@@ -251,6 +307,30 @@ export async function fetchAllChatMessages(): Promise<Record<string, ChatMessage
       }
     } catch (e) {}
   }
+
+  // 1. Primary Source: Query Neon API route /api/neon/chat/messages
+  try {
+    const res = await fetch('/api/neon/chat/messages', { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.messagesMap && typeof json.messagesMap === 'object') {
+        Object.keys(json.messagesMap).forEach((topicId) => {
+          if (!messageMap[topicId]) {
+            messageMap[topicId] = [];
+          }
+          json.messagesMap[topicId].forEach((msgObj: ChatMessage) => {
+            const existingIdx = messageMap[topicId].findIndex((existing) => existing.id === msgObj.id);
+            if (existingIdx >= 0) {
+              const currentIsSelf = messageMap[topicId][existingIdx].isSelf;
+              messageMap[topicId][existingIdx] = { ...msgObj, isSelf: currentIsSelf };
+            } else {
+              messageMap[topicId].push(msgObj);
+            }
+          });
+        });
+      }
+    }
+  } catch (e) {}
 
   try {
     const { data } = await supabase

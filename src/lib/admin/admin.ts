@@ -142,13 +142,20 @@ export async function addPaymentRecord(record: Omit<PaymentRecord, 'id' | 'creat
   const updated = [newRecord, ...current];
   saveStoredPayments(updated);
 
-  // Call Server API
+  // Call Neon & Server APIs
   try {
-    await fetch('/api/admin/payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(record),
-    });
+    await Promise.all([
+      fetch('/api/neon/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record),
+      }),
+      fetch('/api/admin/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record),
+      }),
+    ]);
   } catch (e) {}
 
   try {

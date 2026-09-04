@@ -133,6 +133,118 @@ export async function createNeonUserReviewRecord(review: {
 }
 
 /**
+ * Chat Topics & Messages Queries
+ */
+export async function fetchNeonChatTopics() {
+  return queryNeon(
+    `SELECT id, title, category_slug, category_name, author_pseudonym, author_avatar, created_at
+     FROM public.chat_topics
+     ORDER BY created_at DESC`
+  );
+}
+
+export async function createNeonChatTopicRecord(topic: {
+  id: string;
+  title: string;
+  categorySlug?: string;
+  categoryName?: string;
+  authorPseudonym?: string;
+  authorAvatar?: string;
+}) {
+  const rows = await queryNeon(
+    `INSERT INTO public.chat_topics (id, title, category_slug, category_name, author_pseudonym, author_avatar)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (id) DO NOTHING
+     RETURNING *`,
+    [
+      topic.id,
+      topic.title,
+      topic.categorySlug || 'general',
+      topic.categoryName || 'Discussion & Entraide',
+      topic.authorPseudonym || 'Communauté',
+      topic.authorAvatar || '',
+    ]
+  );
+  return rows[0] || null;
+}
+
+export async function fetchNeonChatMessages() {
+  return queryNeon(
+    `SELECT id, topic_id, sender_id, sender_name, sender_avatar, content, created_at
+     FROM public.chat_messages
+     ORDER BY created_at ASC`
+  );
+}
+
+export async function createNeonChatMessageRecord(msg: {
+  id: string;
+  topicId: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+  content: string;
+}) {
+  const rows = await queryNeon(
+    `INSERT INTO public.chat_messages (id, topic_id, sender_id, sender_name, sender_avatar, content)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (id) DO NOTHING
+     RETURNING *`,
+    [msg.id, msg.topicId, msg.senderId, msg.senderName, msg.senderAvatar || '', msg.content.trim()]
+  );
+  return rows[0] || null;
+}
+
+/**
+ * Payments & Approvals Queries
+ */
+export async function createNeonPaymentRecord(payment: {
+  id: string;
+  userId?: string | null;
+  userName: string;
+  userEmail: string;
+  amount?: number;
+  paymentMethod: string;
+  paymentScreenshotUrl?: string;
+  transactionId?: string;
+}) {
+  const rows = await queryNeon(
+    `INSERT INTO public.payments (id, user_id, user_name, user_email, amount, payment_method, payment_screenshot_url, status, transaction_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8)
+     ON CONFLICT (id) DO NOTHING
+     RETURNING *`,
+    [
+      payment.id,
+      payment.userId || null,
+      payment.userName,
+      payment.userEmail,
+      payment.amount || 500,
+      payment.paymentMethod,
+      payment.paymentScreenshotUrl || '',
+      payment.transactionId || null,
+    ]
+  );
+  return rows[0] || null;
+}
+
+export async function updateNeonApprovalStatus(targetIdOrEmail: string, status: 'approved' | 'rejected') {
+  await Promise.all([
+    queryNeon(
+      `UPDATE public.account_approvals SET status = $1 WHERE LOWER(id) = LOWER($2) OR LOWER(email) = LOWER($2)`,
+      [status, targetIdOrEmail]
+    ),
+    queryNeon(
+      `UPDATE public.payments SET status = $1 WHERE LOWER(id) = LOWER($2) OR LOWER(user_email) = LOWER($2)`,
+      [status, targetIdOrEmail]
+    ),
+    queryNeon(
+      `UPDATE public.profiles SET approval_status = $1, is_approved = $2 WHERE LOWER(id) = LOWER($3) OR LOWER(username) = LOWER($3)`,
+      [status, status === 'approved', targetIdOrEmail]
+    ),
+  ]);
+  return true;
+}
+
+/**
  * Admin Data Sync Queries
  */
 export async function fetchNeonAdminOverview() {
