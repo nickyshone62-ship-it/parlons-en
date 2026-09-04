@@ -190,76 +190,119 @@ export async function getRealPosts(): Promise<Post[]> {
   const supabase = createBrowserClient();
   let dbPosts: Post[] = [];
 
+  // 1. Primary Source: Query Neon API route /api/neon/posts
   try {
-    const { data: postsData, error: postsError } = await supabase
-      .from('posts')
-      .select(`
-        id,
-        author_id,
-        category_id,
-        title,
-        content,
-        status,
-        created_at
-      `)
-      .order('created_at', { ascending: false });
+    const res = await fetch('/api/neon/posts', { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.posts) && json.posts.length > 0) {
+        dbPosts = json.posts
+          .filter((p: any) => p && p.id && !BLACKLISTED_POST_IDS.has(p.id))
+          .map((p: any) => {
+            const anonymousName = p.author_pseudonym || 'Utilisateur Anonyme';
+            const savedLocal = getPostSolutionStatus(p.id);
 
-    if (!postsError && postsData && postsData.length > 0) {
-      const filteredData = postsData.filter((p) => !BLACKLISTED_POST_IDS.has(p.id));
+            let normalizedStatus: PostStatus = 'open';
+            if (savedLocal?.status === 'resolved' || p.status?.startsWith('resolved') || p.status === 'resolved') {
+              normalizedStatus = 'resolved';
+            } else if (savedLocal?.status === 'testing' || p.status?.startsWith('testing') || p.status === 'testing') {
+              normalizedStatus = 'testing';
+            }
 
-      if (filteredData.length > 0) {
-        const authorIds = Array.from(new Set(filteredData.map((p) => p.author_id)));
-        const postIds = filteredData.map((p) => p.id);
-
-        const [{ data: categories }, { data: identities }, { data: comments }] = await Promise.all([
-          supabase.from('categories').select('id, name, slug'),
-          supabase.from('anonymous_identities').select('user_id, anonymous_name').in('user_id', authorIds),
-          supabase.from('comments').select('id, post_id').in('post_id', postIds),
-        ]);
-
-        const catMap = new Map((categories || []).map((c) => [c.id, c]));
-        const identMap = new Map((identities || []).map((i) => [i.user_id, i.anonymous_name]));
-
-        const commentsCountMap = new Map<string, number>();
-        (comments || []).forEach((c) => {
-          commentsCountMap.set(c.post_id, (commentsCountMap.get(c.post_id) || 0) + 1);
-        });
-
-        dbPosts = filteredData.map((p) => {
-          const cat = catMap.get(p.category_id);
-          const anonymousName = identMap.get(p.author_id) || 'Utilisateur Anonyme';
-          const answersCount = commentsCountMap.get(p.id) || 0;
-
-          const savedLocal = getPostSolutionStatus(p.id);
-
-          let normalizedStatus: PostStatus = 'open';
-          if (savedLocal?.status === 'resolved' || p.status?.startsWith('resolved') || p.status === 'resolved') {
-            normalizedStatus = 'resolved';
-          } else if (savedLocal?.status === 'testing' || p.status?.startsWith('testing') || p.status === 'testing') {
-            normalizedStatus = 'testing';
-          }
-
-          return {
-            id: p.id,
-            title: p.title,
-            content: p.content,
-            category_id: p.category_id,
-            category_name: cat?.name || 'Général',
-            category_slug: cat?.slug || 'general',
-            created_at: formatRelativeTime(p.created_at),
-            views_count: getPostViews(p.id),
-            upvotes_count: 0,
-            answers_count: answersCount,
-            status: normalizedStatus,
-            is_demo: false,
-            author_pseudonym: anonymousName,
-            author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(anonymousName)}`,
-          };
-        });
+            return {
+              id: p.id,
+              title: p.title,
+              content: p.content,
+              category_id: p.category_id,
+              category_name: p.category_name || 'Général',
+              category_slug: p.category_slug || 'general',
+              created_at: formatRelativeTime(p.created_at),
+              views_count: getPostViews(p.id),
+              upvotes_count: 0,
+              answers_count: 0,
+              status: normalizedStatus,
+              is_demo: false,
+              author_pseudonym: anonymousName,
+              author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(anonymousName)}`,
+            };
+          });
       }
     }
-  } catch (e) {
-    console.error("Error fetching Supabase posts", e);
+  } catch (e) {}
+
+  // 2. Fallback Source: Query Supabase DB
+  if (dbPosts.length === 0) {
+    try {
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          id,
+          author_id,
+          category_id,
+          title,
+          content,
+          status,
+          created_at
+        `)
+        .order('created_at', { ascending: false });
+
+      if (!postsError && postsData && postsData.length > 0) {
+        const filteredData = postsData.filter((p) => !BLACKLISTED_POST_IDS.has(p.id));
+
+        if (filteredData.length > 0) {
+          const authorIds = Array.from(new Set(filteredData.map((p) => p.author_id)));
+          const postIds = filteredData.map((p) => p.id);
+
+          const [{ data: categories }, { data: identities }, { data: comments }] = await Promise.all([
+            supabase.from('categories').select('id, name, slug'),
+            supabase.from('anonymous_identities').select('user_id, anonymous_name').in('user_id', authorIds),
+            supabase.from('comments').select('id, post_id').in('post_id', postIds),
+          ]);
+
+          const catMap = new Map((categories || []).map((c) => [c.id, c]));
+          const identMap = new Map((identities || []).map((i) => [i.user_id, i.anonymous_name]));
+
+          const commentsCountMap = new Map<string, number>();
+          (comments || []).forEach((c) => {
+            commentsCountMap.set(c.post_id, (commentsCountMap.get(c.post_id) || 0) + 1);
+          });
+
+          dbPosts = filteredData.map((p) => {
+            const cat = catMap.get(p.category_id);
+            const anonymousName = identMap.get(p.author_id) || 'Utilisateur Anonyme';
+            const answersCount = commentsCountMap.get(p.id) || 0;
+
+            const savedLocal = getPostSolutionStatus(p.id);
+
+            let normalizedStatus: PostStatus = 'open';
+            if (savedLocal?.status === 'resolved' || p.status?.startsWith('resolved') || p.status === 'resolved') {
+              normalizedStatus = 'resolved';
+            } else if (savedLocal?.status === 'testing' || p.status?.startsWith('testing') || p.status === 'testing') {
+              normalizedStatus = 'testing';
+            }
+
+            return {
+              id: p.id,
+              title: p.title,
+              content: p.content,
+              category_id: p.category_id,
+              category_name: cat?.name || 'Général',
+              category_slug: cat?.slug || 'general',
+              created_at: formatRelativeTime(p.created_at),
+              views_count: getPostViews(p.id),
+              upvotes_count: 0,
+              answers_count: answersCount,
+              status: normalizedStatus,
+              is_demo: false,
+              author_pseudonym: anonymousName,
+              author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(anonymousName)}`,
+            };
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Error fetching Supabase posts", e);
+    }
   }
 
   // Get local fallback posts

@@ -46,24 +46,43 @@ export async function getRealUserReviews(): Promise<UserReview[]> {
   const supabase = createBrowserClient();
   let dbReviews: UserReview[] = [];
 
+  // 1. Primary Source: Query Neon API route /api/neon/reviews
   try {
-    const { data, error } = await supabase
-      .from('user_reviews')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data && data.length > 0) {
-      dbReviews = data.map((item: any) => ({
-        id: item.id,
-        rating: item.rating || 5,
-        content: item.content,
-        authorPseudonym: item.author_pseudonym || 'Membre Anonyme',
-        authorAvatar: item.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.author_pseudonym || 'Membre')}`,
-        createdAt: item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR') : "À l'instant",
-      }));
+    const res = await fetch('/api/neon/reviews', { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.reviews) && json.reviews.length > 0) {
+        dbReviews = json.reviews.map((item: any) => ({
+          id: item.id,
+          rating: Number(item.rating) || 5,
+          content: item.content,
+          authorPseudonym: item.author_pseudonym || 'Membre Anonyme',
+          authorAvatar: item.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.author_pseudonym || 'Membre')}`,
+          createdAt: item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR') : "À l'instant",
+        }));
+      }
     }
-  } catch (e) {
-    // Supabase table fallback
+  } catch (e) {}
+
+  // 2. Fallback Source: Query Supabase
+  if (dbReviews.length === 0) {
+    try {
+      const { data, error } = await supabase
+        .from('user_reviews')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        dbReviews = data.map((item: any) => ({
+          id: item.id,
+          rating: item.rating || 5,
+          content: item.content,
+          authorPseudonym: item.author_pseudonym || 'Membre Anonyme',
+          authorAvatar: item.author_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(item.author_pseudonym || 'Membre')}`,
+          createdAt: item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR') : "À l'instant",
+        }));
+      }
+    } catch (e) {}
   }
 
   let localReviews: UserReview[] = [];
@@ -88,7 +107,7 @@ export async function getRealUserReviews(): Promise<UserReview[]> {
 }
 
 /**
- * Creates a new user review saved to Supabase DB & LocalStorage so it's visible to everyone
+ * Creates a new user review saved to Neon DB, Supabase DB & LocalStorage so it's visible to everyone
  */
 export async function createRealUserReview(rating: number, content: string): Promise<{ success: boolean; error?: string }> {
   const supabase = createBrowserClient();
@@ -100,7 +119,23 @@ export async function createRealUserReview(rating: number, content: string): Pro
   const newReviewId = `rev-${Date.now()}`;
   const nowStr = new Date().toISOString();
 
-  // 1. Try saving to Supabase
+  // 1. Save to Neon PostgreSQL via API Route
+  try {
+    await fetch('/api/neon/reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: newReviewId,
+        rating,
+        content: content.trim(),
+        authorPseudonym: currentPseudonym,
+        authorAvatar: currentAvatar,
+        userId: session?.user?.id || null,
+      }),
+    });
+  } catch (e) {}
+
+  // 2. Try saving to Supabase
   try {
     await supabase.from('user_reviews').insert([
       {
@@ -115,7 +150,7 @@ export async function createRealUserReview(rating: number, content: string): Pro
     ]);
   } catch (e) {}
 
-  // 2. Always save to LocalStorage fallback
+  // 3. Always save to LocalStorage fallback
   if (typeof window !== 'undefined') {
     const newLocalReview: UserReview = {
       id: newReviewId,

@@ -1,6 +1,7 @@
 import { UserAccountApproval } from './approval';
 import { PaymentRecord } from '@/types';
 import { createClient as createBrowserClient } from '@/lib/supabase/client';
+import { fetchNeonAdminOverview } from '@/lib/db/neonQueries';
 
 export interface ServerStoreData {
   approvals: UserAccountApproval[];
@@ -14,7 +15,7 @@ const globalServerStore: ServerStoreData = {
 };
 
 /**
- * Syncs and retrieves all admin data from server store and Supabase DB
+ * Syncs and retrieves all admin data from server store, Neon PostgreSQL & Supabase DB
  */
 export async function getServerAdminData(): Promise<ServerStoreData> {
   const supabase = createBrowserClient();
@@ -33,6 +34,45 @@ export async function getServerAdminData(): Promise<ServerStoreData> {
       paymentMap.set((p.id || p.user_email).toLowerCase(), p);
     }
   });
+
+  // 2. Primary Source: Query Neon PostgreSQL DB
+  try {
+    const neonData = await fetchNeonAdminOverview();
+    if (neonData) {
+      if (Array.isArray(neonData.approvals)) {
+        neonData.approvals.forEach((a: any) => {
+          if (a && (a.id || a.email)) {
+            const item: UserAccountApproval = {
+              id: a.id,
+              email: a.email,
+              fullName: a.full_name || a.email.split('@')[0],
+              anonymousName: a.anonymous_name || 'Utilisateur',
+              status: a.status || 'pending',
+              createdAt: a.created_at || new Date().toISOString(),
+            };
+            approvalMap.set((a.id || a.email).toLowerCase(), item);
+          }
+        });
+      }
+
+      if (Array.isArray(neonData.payments)) {
+        neonData.payments.forEach((p: any) => {
+          if (p && (p.id || p.user_email)) {
+            paymentMap.set((p.id || p.user_email).toLowerCase(), {
+              id: p.id,
+              user_name: p.user_name || 'Membre',
+              user_email: p.user_email,
+              amount: p.amount || 500,
+              payment_method: p.payment_method || 'Orange Money',
+              payment_screenshot_url: p.payment_screenshot_url || '',
+              status: p.status || 'pending',
+              created_at: p.created_at || new Date().toISOString(),
+            });
+          }
+        });
+      }
+    }
+  } catch (e) {}
 
   // 2. Fetch from Supabase DB profiles & anonymous_identities
   try {
