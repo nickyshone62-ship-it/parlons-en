@@ -90,7 +90,7 @@ export interface PaymentRecord {
   user_name: string;
   transaction_id?: string;
   payment_screenshot_url?: string;
-  payment_method: 'orange_money' | 'wave';
+  payment_method: 'orange_money' | 'wave' | string;
   amount: number;
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;

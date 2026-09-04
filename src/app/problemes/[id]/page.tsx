@@ -19,7 +19,7 @@ import {
   getRealComments,
 } from '@/lib/supabase/posts';
 import { incrementPostViews, getPostViews } from '@/lib/viewsManager';
-import { getCurrentUserSession } from '@/lib/auth/actions';
+import { getCurrentUserSession, isAdminUser } from '@/lib/auth/actions';
 import { Post, Answer } from '@/types';
 import {
   ArrowLeft,

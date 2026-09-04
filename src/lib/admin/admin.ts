@@ -320,25 +320,12 @@ export async function fetchRealAdminUsers(): Promise<AdminUserItem[]> {
   const supabase = createBrowserClient();
   const userMap = new Map<string, AdminUserItem>();
 
-  // Query Server API route /api/admin/data
-  try {
-    const res = await fetch('/api/admin/data', { cache: 'no-store' });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.success && Array.isArray(json.users)) {
-        json.users.forEach((u: AdminUserItem) => {
-          if (u && (u.id || u.email)) {
-            userMap.set((u.id || u.email).toLowerCase(), u);
-          }
-        });
-      }
-    }
-  } catch (e) {}
-
+  // 1. Primary Source: Query public.profiles & public.anonymous_identities directly from Supabase
   try {
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, username, created_at, approval_status, is_approved');
+      .select('id, username, created_at, approval_status, is_approved')
+      .order('created_at', { ascending: false });
 
     const { data: anonIdentities } = await supabase
       .from('anonymous_identities')
@@ -360,34 +347,62 @@ export async function fetchRealAdminUsers(): Promise<AdminUserItem[]> {
         const anonName = anonMap.get(id) || `Utilisateur #${1000 + idx * 37}`;
         const status = p.approval_status === 'approved' || p.is_approved ? 'approved' : p.approval_status === 'rejected' ? 'rejected' : 'pending';
 
-        userMap.set(id.toLowerCase(), {
+        const userItem: AdminUserItem = {
           id: id,
           email: email,
           name: p.username || 'Membre Inscrit',
           anonymousName: anonName,
           paymentStatus: status,
           createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : 'Récemment',
-        });
+        };
+
+        userMap.set(id.toLowerCase(), userItem);
+        if (email) userMap.set(email.toLowerCase(), userItem);
       });
+    }
+  } catch (e) {
+    console.error("Error fetching profiles directly for admin users list:", e);
+  }
+
+  // 2. Secondary Source: Query Server API route /api/admin/data
+  try {
+    const res = await fetch('/api/admin/data', { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.users)) {
+        json.users.forEach((u: AdminUserItem) => {
+          if (u && (u.id || u.email)) {
+            const keyId = u.id ? u.id.toLowerCase() : '';
+            const keyEmail = u.email ? u.email.toLowerCase() : '';
+            if (!userMap.has(keyId) && !userMap.has(keyEmail)) {
+              userMap.set(keyId || keyEmail, u);
+            }
+          }
+        });
+      }
     }
   } catch (e) {}
 
-  const payments = await fetchRealPayments();
-  payments.forEach((p, idx) => {
-    const key = p.user_email.toLowerCase();
-    if (!userMap.has(key)) {
-      userMap.set(key, {
-        id: p.id || `usr-${idx}`,
-        email: p.user_email,
-        name: p.user_name,
-        anonymousName: `Utilisateur #${1000 + idx * 37}`,
-        paymentStatus: p.status,
-        createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : 'Récemment',
-      });
-    }
-  });
+  // 3. Fallback Source: Merge payments records
+  try {
+    const payments = await fetchRealPayments();
+    payments.forEach((p, idx) => {
+      const key = p.user_email.toLowerCase();
+      const keyId = p.id ? p.id.toLowerCase() : '';
+      if (!userMap.has(key) && !userMap.has(keyId)) {
+        userMap.set(key, {
+          id: p.id || `usr-${idx}`,
+          email: p.user_email,
+          name: p.user_name,
+          anonymousName: `Utilisateur #${1000 + idx * 37}`,
+          paymentStatus: p.status,
+          createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : 'Récemment',
+        });
+      }
+    });
+  } catch (e) {}
 
-  return Array.from(userMap.values());
+  return Array.from(new Set(userMap.values()));
 }
 
 export function getStoredChatMessagesMap(): Record<string, any[]> {

@@ -189,7 +189,20 @@ export default function AdminPage() {
       loadAdminData();
     }, 5000);
 
-    return () => clearInterval(interval);
+    const handleFocus = () => {
+      loadAdminData();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleFocus);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleFocus);
+      }
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -300,7 +313,7 @@ export default function AdminPage() {
       return (
         p.user_email.toLowerCase().includes(q) ||
         p.user_name.toLowerCase().includes(q) ||
-        p.transaction_id.toLowerCase().includes(q)
+        (p.transaction_id || '').toLowerCase().includes(q)
       );
     }
     return true;
@@ -479,13 +492,13 @@ export default function AdminPage() {
           {/* Card 4: Total Users */}
           <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border-2 border-indigo-400/50 shadow-md space-y-1">
             <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400">
-              <span className="text-xs font-black uppercase tracking-wider">Membres Inscrits</span>
+              <span className="text-xs font-black uppercase tracking-wider">👥 Utilisateurs</span>
               <Users className="w-5 h-5" />
             </div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
               {usersList.length}
             </div>
-            <p className="text-[10px] text-slate-500 font-bold">Comptes sur la plateforme</p>
+            <p className="text-[10px] text-slate-500 font-bold">Profils enregistrés (public.profiles)</p>
           </div>
 
         </div>
