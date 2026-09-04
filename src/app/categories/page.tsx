@@ -22,18 +22,22 @@ export default function CategoriesPage() {
         const { getRealPosts } = await import('@/lib/supabase/posts');
         const allPosts = await getRealPosts();
         
-        const supabase = createBrowserClient();
-        const { data, error } = await supabase.from('categories').select('*');
-
-        const baseCategories = (!error && data && data.length > 0)
-          ? data.map((cat: any, idx: number) => ({
-              id: String(cat.id || `supa-${idx}`),
-              name: cat.name || 'Catégorie',
-              slug: cat.slug || `cat-${idx}`,
-              description: cat.description || MOCK_CATEGORIES[idx % MOCK_CATEGORIES.length]?.description || "Entraide et conseils.",
-              icon: cat.icon || MOCK_CATEGORIES[idx % MOCK_CATEGORIES.length]?.icon || 'HeartHandshake',
-            }))
-          : MOCK_CATEGORIES;
+        let baseCategories = MOCK_CATEGORIES;
+        try {
+          const res = await fetch('/api/neon/categories', { cache: 'no-store' });
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && Array.isArray(json.categories) && json.categories.length > 0) {
+              baseCategories = json.categories.map((cat: any, idx: number) => ({
+                id: String(cat.id || `neon-${idx}`),
+                name: cat.name || 'Catégorie',
+                slug: cat.slug || `cat-${idx}`,
+                description: cat.description || MOCK_CATEGORIES[idx % MOCK_CATEGORIES.length]?.description || "Entraide et conseils.",
+                icon: cat.icon || MOCK_CATEGORIES[idx % MOCK_CATEGORIES.length]?.icon || 'HeartHandshake',
+              }));
+            }
+          }
+        } catch (e) {}
 
         // Calculate exact real posts count for each category (0 at start)
         const mapped: Category[] = baseCategories.map((cat) => {
