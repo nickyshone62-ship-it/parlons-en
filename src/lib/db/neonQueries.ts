@@ -245,6 +245,90 @@ export async function updateNeonApprovalStatus(targetIdOrEmail: string, status: 
 }
 
 /**
+ * Standalone User Auth Queries (Neon PostgreSQL)
+ */
+export async function findNeonProfileByEmail(email: string) {
+  const rows = await queryNeon(
+    `SELECT id, username, avatar_url, role, approval_status, is_approved, created_at, updated_at
+     FROM public.profiles
+     WHERE LOWER(username) = LOWER($1) OR LOWER(username) = LOWER($2)
+     LIMIT 1`,
+    [email, `${email.split('@')[0]}`]
+  );
+  return rows[0] || null;
+}
+
+export async function findNeonProfileById(userId: string) {
+  const rows = await queryNeon(
+    `SELECT id, username, avatar_url, role, approval_status, is_approved, created_at, updated_at
+     FROM public.profiles
+     WHERE id::text = $1
+     LIMIT 1`,
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+export async function assignNeonAnonymousIdentity(userId: string, email: string) {
+  // Deterministic 4-digit code from userId or email
+  let hash = 0;
+  const str = userId || email;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const anonCode = 1000 + (Math.abs(hash) % 9000);
+  const anonName = `Utilisateur #${anonCode}`;
+
+  const rows = await queryNeon(
+    `INSERT INTO public.anonymous_identities (user_id, anonymous_name)
+     VALUES ($1, $2)
+     ON CONFLICT (user_id) DO UPDATE SET anonymous_name = EXCLUDED.anonymous_name
+     RETURNING anonymous_name`,
+    [userId, anonName]
+  );
+
+  return rows[0]?.anonymous_name || anonName;
+}
+
+export async function registerNeonUser(user: {
+  email: string;
+  fullName: string;
+  avatarUrl?: string;
+}) {
+  const emailPrefix = user.email.split('@')[0];
+  const isDefaultAdmin = user.email.toLowerCase() === 'nickyshone62@gmail.com';
+  const role = isDefaultAdmin ? 'admin' : 'user';
+  const approvalStatus = isDefaultAdmin ? 'approved' : 'pending';
+  const isApproved = isDefaultAdmin;
+
+  const profileRows = await queryNeon(
+    `INSERT INTO public.profiles (username, avatar_url, role, approval_status, is_approved)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT DO NOTHING
+     RETURNING id, username, avatar_url, role, approval_status, is_approved, created_at`,
+    [user.email, user.avatarUrl || '', role, approvalStatus, isApproved]
+  );
+
+  let profile = profileRows[0];
+  if (!profile) {
+    profile = await findNeonProfileByEmail(user.email);
+  }
+
+  const userId = profile ? profile.id : `usr-${Date.now()}`;
+  const anonName = await assignNeonAnonymousIdentity(userId, user.email);
+
+  await queryNeon(
+    `INSERT INTO public.account_approvals (id, email, full_name, anonymous_name, status)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (email) DO UPDATE SET status = EXCLUDED.status`,
+    [userId, user.email, user.fullName || emailPrefix, anonName, approvalStatus]
+  );
+
+  return { profile, userId, anonymousName: anonName };
+}
+
+/**
  * Admin Data Sync Queries
  */
 export async function fetchNeonAdminOverview() {
