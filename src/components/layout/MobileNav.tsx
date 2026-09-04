@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Home, MessageCircle, Plus, Bell, User, ShieldCheck } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { getCurrentUserSession } from '@/lib/auth/actions';
+import { getCurrentUserSession, isAdminUser } from '@/lib/auth/actions';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -20,11 +20,13 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onOpenNewPostModal }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     async function checkAuth() {
       const session = await getCurrentUserSession();
       setIsAuthenticated(Boolean(session.user));
+      setIsAdmin(isAdminUser(session));
     }
     checkAuth();
   }, [pathname]);
@@ -84,6 +86,22 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onOpenNewPostModal }) => {
             Publier
           </span>
         </button>
+
+        {/* Admin Link if Admin */}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              'flex flex-col items-center justify-center py-1 px-2 rounded-xl transition cursor-pointer min-w-[48px]',
+              pathname.startsWith('/admin')
+                ? 'text-amber-500 font-black'
+                : 'text-amber-600 dark:text-amber-400 hover:text-amber-500'
+            )}
+          >
+            <ShieldCheck className="w-5 h-5 text-amber-500" />
+            <span className="text-[10px] font-extrabold mt-1 text-amber-500">Admin</span>
+          </Link>
+        )}
 
         {/* Profil */}
         <button

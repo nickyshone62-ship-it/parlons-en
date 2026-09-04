@@ -60,6 +60,8 @@ import {
 
 import { resetPlatformToZero } from '@/lib/resetData';
 
+import { getCurrentUserSession, isAdminUser } from '@/lib/auth/actions';
+
 export default function AdminPage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pinInput, setPinInput] = useState('Nick@2345');
@@ -89,12 +91,24 @@ export default function AdminPage() {
   const [directChatInputText, setDirectChatInputText] = useState('');
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedUnlocked = sessionStorage.getItem('parlons_en_admin_unlocked');
-      if (savedUnlocked === 'true') {
+    async function checkAdminStatus() {
+      if (typeof window !== 'undefined') {
+        const savedUnlocked = sessionStorage.getItem('parlons_en_admin_unlocked');
+        const savedIsAdmin = localStorage.getItem('parlons_en_is_admin');
+        if (savedUnlocked === 'true' || savedIsAdmin === 'true') {
+          setIsUnlocked(true);
+        }
+      }
+      const session = await getCurrentUserSession();
+      if (isAdminUser(session)) {
         setIsUnlocked(true);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('parlons_en_admin_unlocked', 'true');
+          localStorage.setItem('parlons_en_is_admin', 'true');
+        }
       }
     }
+    checkAdminStatus();
   }, []);
 
   const handleUnlockAdmin = (e: React.FormEvent) => {

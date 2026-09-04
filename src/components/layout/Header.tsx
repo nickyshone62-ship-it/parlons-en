@@ -10,9 +10,10 @@ import {
   User,
   LogOut,
   Sparkles,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { getCurrentUserSession, signOutUser } from '@/lib/auth/actions';
+import { getCurrentUserSession, signOutUser, isAdminUser } from '@/lib/auth/actions';
 import { UserSession } from '@/types';
 
 interface HeaderProps {
@@ -47,8 +48,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewPostModal }) => {
     }
   };
 
+  const isAdmin = isAdminUser(session);
   const userAvatar = session?.user?.user_metadata?.avatar_url || session?.profile?.avatar_url;
-  const anonymousName = session?.anonymousIdentity?.anonymous_name || 'Mon Profil';
+  const anonymousName = isAdmin ? '👑 Administrateur' : (session?.anonymousIdentity?.anonymous_name || 'Mon Profil');
 
   return (
     <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-white/90 dark:bg-slate-950/90 border-b border-blue-100/60 dark:border-slate-800/80 px-3 sm:px-8 py-2.5 transition-colors">
@@ -92,6 +94,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewPostModal }) => {
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>Chat</span>
             </Link>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`px-3 py-1.5 rounded-full text-xs font-black transition flex items-center gap-1 border ${
+                  pathname.startsWith('/admin')
+                    ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-md'
+                    : 'bg-amber-400/10 text-amber-600 dark:text-amber-300 border-amber-400/30 hover:bg-amber-400 hover:text-slate-950'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Espace Admin 🛡️</span>
+              </Link>
+            )}
           </nav>
         </div>
 
@@ -112,8 +127,21 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewPostModal }) => {
 
         {/* Navigation & User Profile (Visible on Mobile & Desktop) */}
         <div className="flex items-center gap-2 sm:gap-3 order-2 sm:order-3">
-          {session?.user ? (
+          {session?.user || isAdmin ? (
             <>
+              {isAdmin && (
+                <Link href="/admin" className="md:hidden">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
+                    className="bg-amber-400 hover:bg-yellow-300 text-slate-950 font-black text-[11px] rounded-full px-2.5 py-1 shadow-md border-none"
+                  >
+                    Admin 🛡️
+                  </Button>
+                </Link>
+              )}
+
               {onOpenNewPostModal && (
                 <Button
                   onClick={onOpenNewPostModal}

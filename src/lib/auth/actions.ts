@@ -248,6 +248,27 @@ export async function signOutUser() {
 }
 
 /**
+ * Checks if the current user session or local storage flag indicates an Administrator account.
+ */
+export function isAdminUser(session?: UserSession | null): boolean {
+  if (typeof window !== 'undefined') {
+    const isUnlocked = sessionStorage.getItem('parlons_en_admin_unlocked') === 'true';
+    const isAdminLocal = localStorage.getItem('parlons_en_is_admin') === 'true';
+    if (isUnlocked || isAdminLocal) return true;
+  }
+
+  if (!session?.user) return false;
+
+  const email = session.user.email?.trim().toLowerCase() || '';
+  if (email === 'nickyshone62@gmail.com' || email === 'admin@parlons-en.fr') {
+    return true;
+  }
+
+  const role = session.profile?.role || (session.user as any)?.user_metadata?.role;
+  return role === 'admin';
+}
+
+/**
  * Fast cached session retriever: prevents redundant sequential network round-trips when multiple components mount simultaneously.
  */
 export async function getCurrentUserSession(): Promise<UserSession> {
@@ -280,9 +301,20 @@ export async function getCurrentUserSession(): Promise<UserSession> {
     };
   }
 
+  const isUserAdmin =
+    user.email?.trim().toLowerCase() === 'nickyshone62@gmail.com' ||
+    user.email?.trim().toLowerCase() === 'admin@parlons-en.fr' ||
+    profile?.role === 'admin' ||
+    user.user_metadata?.role === 'admin';
+
+  if (isUserAdmin && typeof window !== 'undefined') {
+    sessionStorage.setItem('parlons_en_admin_unlocked', 'true');
+    localStorage.setItem('parlons_en_is_admin', 'true');
+  }
+
   cachedSession = {
     user,
-    profile,
+    profile: profile ? { ...profile, role: isUserAdmin ? 'admin' : (profile.role || 'user') } : null,
     anonymousIdentity,
   };
   lastSessionFetchTime = now;

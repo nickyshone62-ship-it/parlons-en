@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getCurrentUserSession, signOutUser } from '@/lib/auth/actions';
+import { getCurrentUserSession, signOutUser, isAdminUser } from '@/lib/auth/actions';
 import { checkUserApprovalStatus } from '@/lib/admin/approval';
 import { UserSession } from '@/types';
 import { Button } from '@/components/ui/Button';
@@ -26,9 +26,8 @@ export const ApprovalGuard: React.FC<ApprovalGuardProps> = ({ children }) => {
       setSession(currentSession);
 
       if (currentSession?.user) {
-        // Admin email always bypasses approval guard
-        const userEmail = currentSession.user.email?.toLowerCase();
-        if (userEmail === 'admin@parlons-en.fr' || userEmail === 'nickyshone62@gmail.com') {
+        // Admin account always bypasses approval guard completely
+        if (isAdminUser(currentSession)) {
           setApprovalStatus('approved');
           setIsChecking(false);
           return;
