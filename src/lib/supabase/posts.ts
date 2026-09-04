@@ -116,7 +116,28 @@ export async function createRealPost(
   let newPostId = `post-${Date.now()}`;
   let isSavedInSupabase = false;
 
-  if (user) {
+  // 1. Primary DB Persistence: Save post in Neon PostgreSQL via API Route
+  try {
+    const neonRes = await fetch('/api/neon/posts/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        categoryId: targetCategoryId,
+        title: title.trim(),
+        content: content.trim(),
+        authorId: user?.id || null,
+      }),
+    });
+    if (neonRes.ok) {
+      const neonJson = await neonRes.json();
+      if (neonJson.success && neonJson.post?.id) {
+        newPostId = neonJson.post.id;
+        isSavedInSupabase = true;
+      }
+    }
+  } catch (e) {}
+
+  if (user && !isSavedInSupabase) {
     try {
       const { data, error } = await supabase
         .from('posts')
@@ -137,12 +158,8 @@ export async function createRealPost(
       if (!error && data?.id) {
         newPostId = data.id;
         isSavedInSupabase = true;
-      } else {
-        console.warn("Supabase insert notice, using local persistence fallback:", error?.message);
       }
-    } catch (err: any) {
-      console.warn("Supabase insert exception, using local persistence fallback:", err?.message);
-    }
+    } catch (err: any) {}
   }
 
   // Always save a local copy to localStorage so the post appears instantly everywhere
@@ -505,6 +522,25 @@ export async function createRealComment(
 
   let newCommentId = `comment-${Date.now()}`;
 
+  // 1. Primary DB Persistence: Save comment in Neon PostgreSQL via API Route
+  try {
+    const neonRes = await fetch('/api/neon/comments/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        postId,
+        content: content.trim(),
+        authorId: user?.id || null,
+      }),
+    });
+    if (neonRes.ok) {
+      const neonJson = await neonRes.json();
+      if (neonJson.success && neonJson.comment?.id) {
+        newCommentId = neonJson.comment.id;
+      }
+    }
+  } catch (e) {}
+
   if (user) {
     try {
       const { data, error } = await supabase
@@ -565,53 +601,114 @@ export async function getRealComments(postId: string): Promise<(Answer & { hasVo
   const supabase = createBrowserClient();
   let dbComments: (Answer & { hasVoted: boolean })[] = [];
 
+  // 1. Primary Source: Query Neon API Route /api/neon/comments
   try {
-    let user: any = null;
+    const res = await fetch(`/api/neon/comments?postId=${encodeURIComponent(postId)}`, { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.comments) && json.comments.length > 0) {
+        dbComments = json.comments.map((c: any) => {
+          const pseudonym = c.author_pseudonym || 'Utilisateur Anonyme';
+          return {
+            id: c.id,
+            post_id: c.post_id,
+            content: c.content,
+            created_at: formatRelativeTime(c.created_at),
+            upvotes_count: 0,
+            is_accepted: false,
+            is_demo: false,
+            author_pseudonym: pseudonym,
+            author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(pseudonym)}`,
+            hasVoted: false,
+            solution_status: 'none' as const,
+            helped_users_count: 0,
+            has_helped_user: false,
+          };
+        });
+      }
+    }
+  } catch (e) {}
+
+  // 2. Fallback Source: Query Supabase DB
+  if (dbComments.length === 0) {
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      user = userData?.user || null;
-    } catch (e) {}
+      let user: any = null;
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        user = userData?.user || null;
+      } catch (e) {}
 
-    const [{ data: postData }, { data: comments, error }] = await Promise.all([
-      supabase.from('posts').select('status').eq('id', postId).maybeSingle(),
-      supabase.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true }),
-    ]);
-
-    if (!error && comments && comments.length > 0) {
-      let testingCommentId: string | null = null;
-      let resolvedCommentId: string | null = null;
-
-      const savedLocal = getPostSolutionStatus(postId);
-      if (savedLocal?.status === 'testing' && savedLocal.commentId) {
-        testingCommentId = savedLocal.commentId;
-      } else if (savedLocal?.status === 'resolved' && savedLocal.commentId) {
-        resolvedCommentId = savedLocal.commentId;
-      }
-
-      if (postData?.status?.startsWith('testing:')) {
-        testingCommentId = postData.status.split('testing:')[1];
-      } else if (postData?.status?.startsWith('resolved:')) {
-        resolvedCommentId = postData.status.split('resolved:')[1];
-      }
-
-      const authorIds = Array.from(new Set(comments.map((c) => c.author_id)));
-      const commentIds = comments.map((c) => c.id);
-
-      const [{ data: identities }, { data: votes }] = await Promise.all([
-        supabase.from('anonymous_identities').select('user_id, anonymous_name').in('user_id', authorIds),
-        supabase.from('votes').select('comment_id, user_id, vote_type').in('comment_id', commentIds),
+      const [{ data: postData }, { data: comments, error }] = await Promise.all([
+        supabase.from('posts').select('status').eq('id', postId).maybeSingle(),
+        supabase.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true }),
       ]);
 
-      const identMap = new Map((identities || []).map((i) => [i.user_id, i.anonymous_name]));
-      const likesCountMap = new Map<string, number>();
-      const helpedCountMap = new Map<string, number>();
-      const userVotedSet = new Set<string>();
-      const userHelpedSet = new Set<string>();
+      if (!error && comments && comments.length > 0) {
+        let testingCommentId: string | null = null;
+        let resolvedCommentId: string | null = null;
 
-      (votes || []).forEach((v) => {
-        if (!v.vote_type || v.vote_type === 'like' || v.vote_type === 'useful') {
-          likesCountMap.set(v.comment_id, (likesCountMap.get(v.comment_id) || 0) + 1);
-          if (user && v.user_id === user.id) userVotedSet.add(v.comment_id);
+        const savedLocal = getPostSolutionStatus(postId);
+        if (savedLocal?.status === 'testing' && savedLocal.commentId) {
+          testingCommentId = savedLocal.commentId;
+        } else if (savedLocal?.status === 'resolved' && savedLocal.commentId) {
+          resolvedCommentId = savedLocal.commentId;
+        }
+
+        if (postData?.status?.startsWith('testing:')) {
+          testingCommentId = postData.status.split('testing:')[1];
+        } else if (postData?.status?.startsWith('resolved:')) {
+          resolvedCommentId = postData.status.split('resolved:')[1];
+        }
+
+        const authorIds = Array.from(new Set(comments.map((c) => c.author_id)));
+        const commentIds = comments.map((c) => c.id);
+
+        const [{ data: identities }, { data: votes }] = await Promise.all([
+          supabase.from('anonymous_identities').select('user_id, anonymous_name').in('user_id', authorIds),
+          supabase.from('votes').select('comment_id, user_id, vote_type').in('comment_id', commentIds),
+        ]);
+
+        const identMap = new Map((identities || []).map((i) => [i.user_id, i.anonymous_name]));
+        const likesCountMap = new Map<string, number>();
+        const helpedCountMap = new Map<string, number>();
+        const userVotedSet = new Set<string>();
+        const userHelpedSet = new Set<string>();
+
+        (votes || []).forEach((v) => {
+          if (!v.vote_type || v.vote_type === 'like' || v.vote_type === 'useful') {
+            likesCountMap.set(v.comment_id, (likesCountMap.get(v.comment_id) || 0) + 1);
+            if (user && v.user_id === user.id) userVotedSet.add(v.comment_id);
+          }
+        });
+
+        dbComments = comments.map((c) => {
+          let solStatus: 'none' | 'testing' | 'confirmed' = 'none';
+          if (resolvedCommentId === c.id) solStatus = 'confirmed';
+          else if (testingCommentId === c.id) solStatus = 'testing';
+
+          const pseudonym = identMap.get(c.author_id) || 'Utilisateur Anonyme';
+
+          return {
+            id: c.id,
+            post_id: c.post_id,
+            content: c.content,
+            created_at: formatRelativeTime(c.created_at),
+            upvotes_count: likesCountMap.get(c.id) || 0,
+            is_accepted: solStatus === 'confirmed',
+            is_demo: false,
+            author_pseudonym: pseudonym,
+            author_avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(pseudonym)}`,
+            hasVoted: userVotedSet.has(c.id),
+            solution_status: solStatus,
+            helped_users_count: helpedCountMap.get(c.id) || 0,
+            has_helped_user: userHelpedSet.has(c.id),
+          };
+        });
+      }
+    } catch (e) {
+      console.error("Error fetching Supabase comments", e);
+    }
+  }
         } else if (v.vote_type === 'helped_me') {
           helpedCountMap.set(v.comment_id, (helpedCountMap.get(v.comment_id) || 0) + 1);
           if (user && v.user_id === user.id) userHelpedSet.add(v.comment_id);
