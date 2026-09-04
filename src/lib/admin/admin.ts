@@ -47,7 +47,75 @@ export function saveStoredPayments(payments: PaymentRecord[]): void {
   }
 }
 
-export function addPaymentRecord(record: Omit<PaymentRecord, 'id' | 'created_at' | 'status' | 'amount'>): PaymentRecord {
+/**
+ * Fetches real payments from Supabase DB merged with local storage so admin sees payment screenshots & submissions across devices
+ */
+export async function fetchRealPayments(): Promise<PaymentRecord[]> {
+  const supabase = createBrowserClient();
+  const localPayments = getStoredPayments();
+  const paymentMap = new Map<string, PaymentRecord>();
+
+  localPayments.forEach((p) => {
+    if (p && p.id) {
+      paymentMap.set(p.id, p);
+    }
+  });
+
+  try {
+    const { data: dbPayments } = await supabase
+      .from('payments')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (dbPayments && dbPayments.length > 0) {
+      dbPayments.forEach((p: any) => {
+        paymentMap.set(p.id, {
+          id: p.id,
+          user_name: p.user_name || p.user_email?.split('@')[0] || 'Membre',
+          user_email: p.user_email || 'user@parlons-en.fr',
+          amount: p.amount || 500,
+          payment_method: p.payment_method || 'Orange Money',
+          payment_screenshot_url: p.payment_screenshot_url || '',
+          status: p.status || 'pending',
+          created_at: p.created_at || new Date().toISOString(),
+        });
+      });
+    }
+  } catch (e) {}
+
+  try {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, created_at, approval_status, is_approved');
+
+    if (profiles && profiles.length > 0) {
+      profiles.forEach((prof: any) => {
+        const email = prof.username && prof.username.includes('@') ? prof.username : `${prof.username || 'user'}@parlons-en.fr`;
+        const exists = Array.from(paymentMap.values()).some((p) => p.user_email.toLowerCase() === email.toLowerCase());
+        if (!exists) {
+          const synthId = `pay-prof-${prof.id}`;
+          paymentMap.set(synthId, {
+            id: synthId,
+            user_name: prof.username || 'Nouveau Membre',
+            user_email: email,
+            amount: 500,
+            payment_method: 'Paiement Inscription',
+            payment_screenshot_url: '',
+            status: prof.approval_status === 'approved' || prof.is_approved ? 'approved' : prof.approval_status === 'rejected' ? 'rejected' : 'pending',
+            created_at: prof.created_at || new Date().toISOString(),
+          });
+        }
+      });
+    }
+  } catch (e) {}
+
+  const list = Array.from(paymentMap.values());
+  saveStoredPayments(list);
+  return list;
+}
+
+export async function addPaymentRecord(record: Omit<PaymentRecord, 'id' | 'created_at' | 'status' | 'amount'>): Promise<PaymentRecord> {
+  const supabase = createBrowserClient();
   const current = getStoredPayments();
   const newRecord: PaymentRecord = {
     ...record,
@@ -58,14 +126,54 @@ export function addPaymentRecord(record: Omit<PaymentRecord, 'id' | 'created_at'
   };
   const updated = [newRecord, ...current];
   saveStoredPayments(updated);
+
+  try {
+    await supabase.from('payments').upsert([
+      {
+        id: newRecord.id,
+        user_name: record.user_name,
+        user_email: record.user_email,
+        amount: 500,
+        payment_method: record.payment_method,
+        payment_screenshot_url: record.payment_screenshot_url || '',
+        status: 'pending',
+        created_at: newRecord.created_at,
+      },
+    ]);
+  } catch (e) {}
+
   return newRecord;
 }
 
-export function updatePaymentStatus(paymentId: string, status: 'approved' | 'rejected'): PaymentRecord[] {
+export async function updatePaymentStatus(paymentId: string, status: 'approved' | 'rejected'): Promise<PaymentRecord[]> {
+  const supabase = createBrowserClient();
   const current = getStoredPayments();
+  const targetPayment = current.find((p) => p.id === paymentId);
+
+  try {
+    await supabase.from('payments').update({ status }).eq('id', paymentId);
+  } catch (e) {}
+
+  if (targetPayment && targetPayment.user_email) {
+    try {
+      const emailPrefix = targetPayment.user_email.split('@')[0];
+      await supabase
+        .from('profiles')
+        .update({ approval_status: status, is_approved: status === 'approved' })
+        .or(`username.eq.${emailPrefix},username.eq.${targetPayment.user_email}`);
+    } catch (e) {}
+
+    try {
+      await supabase
+        .from('account_approvals')
+        .update({ status })
+        .eq('email', targetPayment.user_email);
+    } catch (e) {}
+  }
+
   const updated = current.map((p) => (p.id === paymentId ? { ...p, status } : p));
   saveStoredPayments(updated);
-  return updated;
+  return fetchRealPayments();
 }
 
 export function getAdminStats() {
@@ -173,6 +281,65 @@ export function getAdminUsersList(): AdminUserItem[] {
     }));
   }
   return DEMO_USERS;
+}
+
+export async function fetchRealAdminUsers(): Promise<AdminUserItem[]> {
+  const supabase = createBrowserClient();
+  const userMap = new Map<string, AdminUserItem>();
+
+  try {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, created_at, approval_status, is_approved');
+
+    const { data: anonIdentities } = await supabase
+      .from('anonymous_identities')
+      .select('user_id, anonymous_name');
+
+    const anonMap = new Map<string, string>();
+    if (anonIdentities) {
+      anonIdentities.forEach((ai: any) => {
+        if (ai.user_id && ai.anonymous_name) {
+          anonMap.set(ai.user_id, ai.anonymous_name);
+        }
+      });
+    }
+
+    if (profiles && profiles.length > 0) {
+      profiles.forEach((p: any, idx: number) => {
+        const id = p.id;
+        const email = p.username && p.username.includes('@') ? p.username : `${p.username || 'user'}@parlons-en.fr`;
+        const anonName = anonMap.get(id) || `Utilisateur #${1000 + idx * 37}`;
+        const status = p.approval_status === 'approved' || p.is_approved ? 'approved' : p.approval_status === 'rejected' ? 'rejected' : 'pending';
+
+        userMap.set(id, {
+          id: id,
+          email: email,
+          name: p.username || 'Membre Inscrit',
+          anonymousName: anonName,
+          paymentStatus: status,
+          createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : 'Récemment',
+        });
+      });
+    }
+  } catch (e) {}
+
+  const payments = await fetchRealPayments();
+  payments.forEach((p, idx) => {
+    const key = p.user_email.toLowerCase();
+    if (!userMap.has(key)) {
+      userMap.set(key, {
+        id: p.id || `usr-${idx}`,
+        email: p.user_email,
+        name: p.user_name,
+        anonymousName: `Utilisateur #${1000 + idx * 37}`,
+        paymentStatus: p.status,
+        createdAt: p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : 'Récemment',
+      });
+    }
+  });
+
+  return Array.from(userMap.values());
 }
 
 export function getStoredChatMessagesMap(): Record<string, any[]> {

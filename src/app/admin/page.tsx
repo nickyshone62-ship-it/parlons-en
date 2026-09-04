@@ -7,6 +7,7 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { Button } from '@/components/ui/Button';
 import {
   getStoredPayments,
+  fetchRealPayments,
   updatePaymentStatus,
   getAdminStats,
   getStoredReports,
@@ -15,6 +16,7 @@ import {
   addWarningToUser,
   dismissWarning,
   getAdminUsersList,
+  fetchRealAdminUsers,
   getStoredChatMessagesMap,
   deleteChatMessageFromTopic,
   postAdminAnnouncementToChat,
@@ -157,10 +159,10 @@ export default function AdminPage() {
   };
 
   const loadAdminData = async () => {
-    const currentPayments = getStoredPayments();
+    const currentPayments = await fetchRealPayments();
     const currentReports = getStoredReports();
     const currentWarnings = getStoredWarnings();
-    const currentUsers = getAdminUsersList();
+    const currentUsers = await fetchRealAdminUsers();
     const currentChat = getStoredChatMessagesMap();
     const currentApprovals = await fetchAllAccountApprovals();
 
@@ -213,9 +215,11 @@ export default function AdminPage() {
     showToast(`Le compte utilisateur "${idOrName}" a été définitivement supprimé. 🗑️`);
   };
 
-  const handleUpdatePayment = (id: string, newStatus: 'approved' | 'rejected') => {
-    const updated = updatePaymentStatus(id, newStatus);
+  const handleUpdatePayment = async (id: string, newStatus: 'approved' | 'rejected') => {
+    const updated = await updatePaymentStatus(id, newStatus);
     setPayments(updated);
+    const updatedApprovals = await fetchAllAccountApprovals();
+    setAccountApprovals(updatedApprovals);
     showToast(newStatus === 'approved' ? 'Paiement de 500 F approuvé avec succès ! ✅' : 'Paiement rejeté ❌');
   };
 

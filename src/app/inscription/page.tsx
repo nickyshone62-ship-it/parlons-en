@@ -108,7 +108,7 @@ export default function InscriptionPage() {
         // Save payment to admin dashboard with screenshot
         try {
           const { addPaymentRecord } = await import('@/lib/admin/admin');
-          addPaymentRecord({
+          await addPaymentRecord({
             user_email: email,
             user_name: `${firstName} ${lastName}`,
             payment_screenshot_url: paymentScreenshot,
