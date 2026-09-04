@@ -40,6 +40,36 @@ export const INITIAL_TOPICS: UserChatTopic[] = [
   },
 ];
 
+export function getOrCreateGuestId(): { guestId: string; guestName: string; guestAvatar: string } {
+  if (typeof window === 'undefined') {
+    return {
+      guestId: 'guest-ssr',
+      guestName: 'Utilisateur Anonyme',
+      guestAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=GuestSSR',
+    };
+  }
+  let guestId = sessionStorage.getItem('parlons_en_guest_id');
+  let guestName = sessionStorage.getItem('parlons_en_guest_name');
+  let guestAvatar = sessionStorage.getItem('parlons_en_guest_avatar');
+
+  if (!guestId) {
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    guestId = `guest-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    guestName = `Utilisateur #${randomNum}`;
+    guestAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${guestId}`;
+
+    sessionStorage.setItem('parlons_en_guest_id', guestId);
+    sessionStorage.setItem('parlons_en_guest_name', guestName);
+    sessionStorage.setItem('parlons_en_guest_avatar', guestAvatar);
+  }
+
+  return {
+    guestId,
+    guestName: guestName || 'Utilisateur Anonyme',
+    guestAvatar: guestAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${guestId}`,
+  };
+}
+
 let activeRealtimeChannel: any = null;
 
 function getSharedChatChannel() {
@@ -70,8 +100,9 @@ export function subscribeToRealtimeChat(
     .on('broadcast', { event: 'new_message' }, ({ payload }: any) => {
       if (payload && payload.id && payload.topicId && payload.content) {
         const isSelfMsg = Boolean(
-          payload.senderId === currentUserId ||
-          payload.senderName === currentPseudonym
+          currentUserId &&
+          currentUserId !== 'guest-ssr' &&
+          payload.senderId === currentUserId
         );
 
         onNewMessage({
@@ -233,10 +264,12 @@ export async function fetchAllChatMessages(): Promise<Record<string, ChatMessage
           id: m.id,
           topicId: m.topic_id,
           senderId: m.sender_id,
-          senderName: m.sender_name,
-          senderAvatar: m.sender_avatar,
+          senderName: m.sender_name || 'Utilisateur Anonyme',
+          senderAvatar: m.sender_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.sender_id}`,
           content: m.content,
-          createdAt: new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          createdAt: m.created_at
+            ? new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+            : 'Récemment',
           isSelf: false,
         };
 
@@ -244,8 +277,15 @@ export async function fetchAllChatMessages(): Promise<Record<string, ChatMessage
           messageMap[m.topic_id] = [];
         }
 
-        const exists = messageMap[m.topic_id].some((existing) => existing.id === m.id);
-        if (!exists) {
+        const existingIdx = messageMap[m.topic_id].findIndex((existing) => existing.id === m.id);
+        if (existingIdx >= 0) {
+          // Preserve local isSelf status if present
+          const currentIsSelf = messageMap[m.topic_id][existingIdx].isSelf;
+          messageMap[m.topic_id][existingIdx] = {
+            ...msgObj,
+            isSelf: currentIsSelf,
+          };
+        } else {
           messageMap[m.topic_id].push(msgObj);
         }
       });

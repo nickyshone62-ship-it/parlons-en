@@ -48,6 +48,7 @@ import {
   deleteChatMessage,
   deleteAllChatMessages,
   editChatMessage,
+  getOrCreateGuestId,
 } from '@/lib/supabase/chat';
 
 const INITIAL_MESSAGES: Record<string, ChatMessage[]> = {
@@ -81,9 +82,10 @@ export default function ChatPage() {
     async function loadData() {
       const currentSession = await getCurrentUserSession();
       setSession(currentSession);
-      
-      const userId = currentSession?.user?.id || 'guest';
-      const pseudo = currentSession?.anonymousIdentity?.anonymous_name || 'Utilisateur #4821';
+
+      const guestInfo = getOrCreateGuestId();
+      const userId = currentSession?.user?.id || guestInfo.guestId;
+      const pseudo = currentSession?.anonymousIdentity?.anonymous_name || guestInfo.guestName;
 
       // Load initial topics and messages from DB + LocalStorage
       const loadedTopics = await fetchAllChatTopics();
@@ -218,8 +220,9 @@ export default function ChatPage() {
     }, 50);
   };
 
-  const currentPseudonym = session?.anonymousIdentity?.anonymous_name || 'Utilisateur #4821';
-  const currentAvatar = session?.user?.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(currentPseudonym)}`;
+  const guestInfo = typeof window !== 'undefined' ? getOrCreateGuestId() : { guestId: 'guest-ssr', guestName: 'Utilisateur Anonyme', guestAvatar: '' };
+  const currentPseudonym = session?.anonymousIdentity?.anonymous_name || guestInfo.guestName;
+  const currentAvatar = session?.user?.user_metadata?.avatar_url || guestInfo.guestAvatar;
 
   const filteredTopics = topics.filter((t) => {
     const matchesFilter = activeFilter === 'all' || t.categorySlug === activeFilter;
@@ -241,10 +244,12 @@ export default function ChatPage() {
     const textToSend = inputValue.trim();
     if (!textToSend) return;
 
+    const senderId = session?.user?.id || guestInfo.guestId;
+
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       topicId: activeTopic.id,
-      senderId: session?.user?.id || 'guest',
+      senderId: senderId,
       senderName: currentPseudonym,
       senderAvatar: currentAvatar,
       content: textToSend,
@@ -645,10 +650,10 @@ export default function ChatPage() {
                 </div>
               ) : (
                 currentMessages.map((msg) => {
+                  const currentUserId = session?.user?.id || guestInfo.guestId;
                   const isUserMsg = Boolean(
                     msg.isSelf ||
-                    msg.senderName === currentPseudonym ||
-                    (session?.user?.id && msg.senderId === session.user.id)
+                    (currentUserId && currentUserId !== 'guest-ssr' && msg.senderId === currentUserId)
                   );
                   const canManageMsg = isUserMsg || isAdminUser(session);
 
