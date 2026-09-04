@@ -1,5 +1,6 @@
 import { PaymentRecord, ReportItem } from '@/types';
 import { createClient as createBrowserClient } from '@/lib/supabase/client';
+import { broadcastChatMessage, broadcastChatTopic } from '@/lib/supabase/chat';
 
 const LOCAL_STORAGE_PAYMENTS_KEY = 'parlons_en_admin_payments_v1';
 const LOCAL_STORAGE_REPORTS_KEY = 'parlons_en_admin_reports_v1';
@@ -220,6 +221,8 @@ export function postAdminAnnouncementToChat(content: string, topicId: string = '
     localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messagesMap));
   }
 
+  broadcastChatMessage(newAdminMessage as any).catch(() => {});
+
   return messagesMap;
 }
 
@@ -247,6 +250,8 @@ export function sendAdminReplyToTopic(content: string, topicId: string): Record<
     localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(messagesMap));
   }
 
+  broadcastChatMessage(newAdminMessage as any).catch(() => {});
+
   return messagesMap;
 }
 
@@ -254,27 +259,30 @@ export function startOrGetAdminUserChatTopic(userPseudonym: string, userName?: s
   const cleanId = `admin-chat-${userPseudonym.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
   const topicTitle = `💬 Support Direct : ${userPseudonym}${userName ? ` (${userName})` : ''}`;
 
+  const newTopic = {
+    id: cleanId,
+    title: topicTitle,
+    categorySlug: 'general',
+    categoryName: 'Support Administrateur',
+    authorPseudonym: 'Modération Officielle',
+    authorAvatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=AdminOfficialBadge',
+    createdAt: "À l'instant",
+    activeCount: 2,
+    isAdminTopic: true,
+  };
+
   if (typeof window !== 'undefined') {
     try {
       const savedTopics = localStorage.getItem('parlons_en_chat_topics_v2');
       const topicsList = savedTopics ? JSON.parse(savedTopics) : [];
       const exists = topicsList.some((t: any) => t.id === cleanId);
       if (!exists) {
-        const newTopic = {
-          id: cleanId,
-          title: topicTitle,
-          categorySlug: 'general',
-          categoryName: 'Support Administrateur',
-          authorPseudonym: 'Modération Officielle',
-          authorAvatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=AdminOfficialBadge',
-          createdAt: "À l'instant",
-          activeCount: 2,
-          isAdminTopic: true,
-        };
         localStorage.setItem('parlons_en_chat_topics_v2', JSON.stringify([newTopic, ...topicsList]));
       }
     } catch (e) {}
   }
+
+  broadcastChatTopic(newTopic as any).catch(() => {});
 
   return { topicId: cleanId, topicTitle };
 }
