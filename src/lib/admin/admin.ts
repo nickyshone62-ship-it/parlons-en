@@ -48,7 +48,7 @@ export function saveStoredPayments(payments: PaymentRecord[]): void {
 }
 
 /**
- * Fetches real payments from Supabase DB merged with local storage so admin sees payment screenshots & submissions across devices
+ * Fetches real payments from Server API (/api/admin/data) + Supabase DB merged with local storage so admin sees payment screenshots & submissions across devices
  */
 export async function fetchRealPayments(): Promise<PaymentRecord[]> {
   const supabase = createBrowserClient();
@@ -60,6 +60,21 @@ export async function fetchRealPayments(): Promise<PaymentRecord[]> {
       paymentMap.set(p.id, p);
     }
   });
+
+  // Query Server API route /api/admin/data
+  try {
+    const res = await fetch('/api/admin/data', { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.payments)) {
+        json.payments.forEach((p: PaymentRecord) => {
+          if (p && p.id) {
+            paymentMap.set(p.id, p);
+          }
+        });
+      }
+    }
+  } catch (e) {}
 
   try {
     const { data: dbPayments } = await supabase
@@ -127,6 +142,15 @@ export async function addPaymentRecord(record: Omit<PaymentRecord, 'id' | 'creat
   const updated = [newRecord, ...current];
   saveStoredPayments(updated);
 
+  // Call Server API
+  try {
+    await fetch('/api/admin/payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    });
+  } catch (e) {}
+
   try {
     await supabase.from('payments').upsert([
       {
@@ -149,6 +173,15 @@ export async function updatePaymentStatus(paymentId: string, status: 'approved' 
   const supabase = createBrowserClient();
   const current = getStoredPayments();
   const targetPayment = current.find((p) => p.id === paymentId);
+
+  // Call Server API
+  try {
+    await fetch('/api/admin/approval', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetIdOrEmail: paymentId, action: status }),
+    });
+  } catch (e) {}
 
   try {
     await supabase.from('payments').update({ status }).eq('id', paymentId);
@@ -287,6 +320,21 @@ export async function fetchRealAdminUsers(): Promise<AdminUserItem[]> {
   const supabase = createBrowserClient();
   const userMap = new Map<string, AdminUserItem>();
 
+  // Query Server API route /api/admin/data
+  try {
+    const res = await fetch('/api/admin/data', { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.users)) {
+        json.users.forEach((u: AdminUserItem) => {
+          if (u && (u.id || u.email)) {
+            userMap.set((u.id || u.email).toLowerCase(), u);
+          }
+        });
+      }
+    }
+  } catch (e) {}
+
   try {
     const { data: profiles } = await supabase
       .from('profiles')
@@ -312,7 +360,7 @@ export async function fetchRealAdminUsers(): Promise<AdminUserItem[]> {
         const anonName = anonMap.get(id) || `Utilisateur #${1000 + idx * 37}`;
         const status = p.approval_status === 'approved' || p.is_approved ? 'approved' : p.approval_status === 'rejected' ? 'rejected' : 'pending';
 
-        userMap.set(id, {
+        userMap.set(id.toLowerCase(), {
           id: id,
           email: email,
           name: p.username || 'Membre Inscrit',

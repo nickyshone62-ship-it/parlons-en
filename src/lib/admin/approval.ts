@@ -29,8 +29,8 @@ export function saveStoredAccountApprovals(approvals: UserAccountApproval[]): vo
 }
 
 /**
- * Fetches all registered account approvals from Supabase DB (profiles + anonymous_identities + account_approvals)
- * merged with local storage so accounts registered on any device are visible in Admin Space.
+ * Fetches all registered account approvals from Server API (/api/admin/data) + Supabase DB + local storage
+ * so accounts registered on any device are 100% visible in Admin Space.
  */
 export async function fetchAllAccountApprovals(): Promise<UserAccountApproval[]> {
   const supabase = createBrowserClient();
@@ -44,7 +44,22 @@ export async function fetchAllAccountApprovals(): Promise<UserAccountApproval[]>
     }
   });
 
-  // 1. Fetch from public.profiles and public.anonymous_identities
+  // 1. Query Next.js Server API route (/api/admin/data)
+  try {
+    const res = await fetch('/api/admin/data', { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.approvals)) {
+        json.approvals.forEach((a: UserAccountApproval) => {
+          if (a && (a.id || a.email)) {
+            approvalMap.set((a.id || a.email).toLowerCase(), a);
+          }
+        });
+      }
+    }
+  } catch (e) {}
+
+  // 2. Fetch from public.profiles and public.anonymous_identities
   try {
     const { data: profiles } = await supabase
       .from('profiles')
@@ -90,7 +105,7 @@ export async function fetchAllAccountApprovals(): Promise<UserAccountApproval[]>
     console.error("Error fetching DB profiles for admin approval:", e);
   }
 
-  // 2. Fetch from account_approvals table if present
+  // 3. Fetch from account_approvals table if present
   try {
     const { data: dbApprovals } = await supabase
       .from('account_approvals')
@@ -122,7 +137,7 @@ export async function fetchAllAccountApprovals(): Promise<UserAccountApproval[]>
 }
 
 /**
- * Registers a newly created user account for admin approval (local + DB persistence)
+ * Registers a newly created user account for admin approval (local + DB + Server API)
  */
 export async function registerUserForApproval(user: { id: string; email: string; fullName: string; anonymousName: string }): Promise<UserAccountApproval> {
   const supabase = createBrowserClient();
@@ -143,6 +158,15 @@ export async function registerUserForApproval(user: { id: string; email: string;
     : [newApproval, ...current];
 
   saveStoredAccountApprovals(updated);
+
+  // Call Server API Route
+  try {
+    await fetch('/api/admin/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newApproval),
+    });
+  } catch (e) {}
 
   // DB persistence
   try {
@@ -180,6 +204,15 @@ export async function approveUserAccount(userIdOrEmail: string): Promise<UserAcc
   const supabase = createBrowserClient();
   const target = userIdOrEmail.trim();
 
+  // Call Server API
+  try {
+    await fetch('/api/admin/approval', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetIdOrEmail: target, action: 'approved' }),
+    });
+  } catch (e) {}
+
   try {
     await supabase
       .from('profiles')
@@ -211,6 +244,15 @@ export async function approveUserAccount(userIdOrEmail: string): Promise<UserAcc
 export async function rejectUserAccount(userIdOrEmail: string): Promise<UserAccountApproval[]> {
   const supabase = createBrowserClient();
   const target = userIdOrEmail.trim();
+
+  // Call Server API
+  try {
+    await fetch('/api/admin/approval', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetIdOrEmail: target, action: 'rejected' }),
+    });
+  } catch (e) {}
 
   try {
     await supabase
@@ -263,7 +305,7 @@ export function checkUserApprovalStatus(userId?: string, email?: string): 'pendi
 }
 
 /**
- * Checks if a user's account is approved (async DB version that queries Supabase profiles)
+ * Checks if a user's account is approved (async DB + Server API version)
  */
 export async function checkUserApprovalStatusAsync(userId?: string, email?: string): Promise<'pending' | 'approved' | 'rejected'> {
   if (!userId && !email) return 'approved';
@@ -276,6 +318,18 @@ export async function checkUserApprovalStatusAsync(userId?: string, email?: stri
   if (typeof window !== 'undefined' && localStorage.getItem('parlons_en_is_admin') === 'true') {
     return 'approved';
   }
+
+  // 1. Query Server API route /api/admin/status
+  try {
+    const url = `/api/admin/status?userId=${encodeURIComponent(userId || '')}&email=${encodeURIComponent(email || '')}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.status) {
+        return json.status;
+      }
+    }
+  } catch (e) {}
 
   const supabase = createBrowserClient();
 
@@ -310,6 +364,15 @@ export async function checkUserApprovalStatusAsync(userId?: string, email?: stri
 export async function deleteUserAccount(identifier: string): Promise<UserAccountApproval[]> {
   const supabase = createBrowserClient();
   const cleanId = identifier.trim().toLowerCase();
+
+  // Call Server API
+  try {
+    await fetch('/api/admin/approval', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetIdOrEmail: cleanId, action: 'delete' }),
+    });
+  } catch (e) {}
 
   try {
     await supabase
